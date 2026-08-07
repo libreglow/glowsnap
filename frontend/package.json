@@ -18,7 +18,7 @@
     "konva": "^10.3.0",
     "lucide-react": "^1.27.0",
     "path": "^0.12.7",
-    "postcss": "^8.5.24",
+    "postcss": "^8.5.25",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-konva": "19",
