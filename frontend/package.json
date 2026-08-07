@@ -22,7 +22,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-konva": "19",
-    "shadcn": "^4.16.0",
+    "shadcn": "^4.16.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
     "tailwindcss-animate": "^1.0.7",
