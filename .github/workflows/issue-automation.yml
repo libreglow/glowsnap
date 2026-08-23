@@ -36,6 +36,8 @@ jobs:
               milestone: milestone.number
             });
 
+            console.log('Milestone set to v1.1.2');
+
       - name: Add Under review Label
         uses: actions/github-script@v7
         with:
@@ -47,25 +49,26 @@ jobs:
               labels: ['Under review']
             });
 
-            console.log('Added "Under review" label');
+            console.log('Added Under review label');
 
       - name: Set Issue Type
         uses: actions/github-script@v7
         with:
           script: |
             const issue = context.payload.issue;
-            const title = issue.title;
+
+            const labels = issue.labels.map(label => label.name);
 
             let issueTypeName = null;
 
-            if (title.startsWith('[Feature]')) {
-              issueTypeName = 'Feature';
-            } else if (title.startsWith('[Bug]')) {
+            if (labels.includes('bug')) {
               issueTypeName = 'Bug';
+            } else if (labels.includes('enhancement')) {
+              issueTypeName = 'Feature';
             }
 
             if (!issueTypeName) {
-              console.log('No matching issue type.');
+              console.log('No matching issue type label found.');
               return;
             }
 
