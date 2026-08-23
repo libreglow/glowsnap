@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ArrowLeft, RefreshCw, Film, Search, Star, X } from "lucide-react";
+import { ArrowLeft, RefreshCw, Film, Search, Star } from "lucide-react";
 import { RecordProps, Recording } from "@/types/types";
 import {
   ListRecordings,
@@ -10,6 +10,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { settings } from "../../wailsjs/go/models";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MediaCard } from "@/components/ui/media-card";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -235,9 +236,7 @@ export default function Record({
           <h1 className="text-sm font-semibold text-white/90">
             GlowSnap Studio
           </h1>
-        </div>
-
-        <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10 ml-auto mr-auto">
+          <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10 ml-auto mr-auto">
           <button
             onClick={onSwitchToStudio}
             className="px-3 py-1 text-xs rounded-md text-white/60 hover:text-white/90 transition-colors"
@@ -248,7 +247,8 @@ export default function Record({
             Record
           </button>
         </div>
-
+        </div>
+        
         <div className="flex items-center gap-3 ml-auto">
           <div className="relative">
             <Search
@@ -340,50 +340,17 @@ export default function Record({
             <span className="text-xs text-white/40 uppercase tracking-wider px-1">
               Recordings
             </span>
-            <div className="flex flex-col gap-0.5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-max">
               {processedRecordings.map((rec) => (
-                <div
+                <MediaCard
                   key={rec.name}
-                  onClick={() => handleSelectRecording(rec)}
-                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs transition-colors text-white/60 hover:bg-white/5 hover:text-white/90 cursor-pointer group"
-                >
-                  <div className="min-w-0">
-                    <span className="block truncate">{rec.name}</span>
-                    {formatDate(rec.name) && (
-                      <span className="text-[10px] text-white/30">
-                        {formatDate(rec.name)}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(rec.name);
-                    }}
-                    className={`text-xs shrink-0 ${
-                      favorites.has(rec.name)
-                        ? "text-yellow-400"
-                        : "text-white/30 hover:text-yellow-400"
-                    }`}
-                    title={
-                      favorites.has(rec.name)
-                        ? "Remove from favorites"
-                        : "Add to favorites"
-                    }
-                  >
-                    <Star size={15} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDelete(rec.name);
-                    }}
-                    className="text-xs shrink-0 text-red-400 hover:text-red-300"
-                    title="Delete recording"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
+                  name={rec.name}
+                  dateLabel={formatDate(rec.name)}
+                  isFavorite={favorites.has(rec.name)}
+                  onOpen={() => handleSelectRecording(rec)}
+                  onToggleFavorite={() => toggleFavorite(rec.name)}
+                  onDelete={() => handleDelete(rec.name)}
+                />
               ))}
             </div>
           </div>

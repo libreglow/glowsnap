@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Image as ImageIcon,
   RefreshCw,
-  X,
   Search,
   Star,
 } from "lucide-react";
@@ -25,6 +24,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import Editor from "@/components/editor/Editor";
 import { CustomFontsProvider } from "@/lib/customFonts";
 import { Button } from "./ui/button";
+import { MediaCard } from "./ui/media-card";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -360,9 +360,7 @@ export default function Studio({
           <h1 className="text-sm font-semibold text-white/90">
             GlowSnap Studio
           </h1>
-        </div>
-
-        <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10 ml-auto mr-auto">
+          <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10 ml-auto mr-auto">
           <button className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium">
             Studio
           </button>
@@ -372,6 +370,7 @@ export default function Studio({
           >
             Record
           </button>
+        </div>
         </div>
 
         <div className="flex items-center gap-3 ml-auto">
@@ -459,79 +458,36 @@ export default function Studio({
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-max">
               {currentPageImages.map((file) => (
-                <div
+                <MediaCard
                   key={file.name}
-                  ref={(el) => {
+                  name={file.name}
+                  dateLabel={formatDate(file.date)}
+                  sizeLabel={formatSize(file.size)}
+                  isFavorite={favorites.has(file.name)}
+                  onToggleFavorite={() => toggleFavorite(file.name)}
+                  onDelete={() => handleDelete(file.name)}
+                  cardRef={(el) => {
                     imageRefs.current[file.name] = el;
                   }}
-                  className="relative group bg-white/5 rounded-xl overflow-hidden border border-white/5 hover:border-white/20 transition-all duration-200 cursor-pointer"
-                >
-                  <img
-                    onClick={() => handleImageClick(file)}
-                    src={`${baseUrl}/${encodeURIComponent(file.name)}`}
-                    alt={file.name}
-                    className="w-full h-48 object-cover"
-                    loading="lazy"
-                  />
-                  <div className="p-2 text-xs text-white/70">
-                    {renamingImage === file.name ? (
-                      <input
-                        autoFocus
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={() => handleRename(file.name, renameValue)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" &&
-                          handleRename(file.name, renameValue)
-                        }
-                        className="bg-white/10 rounded text-xs px-1 w-full outline-none mb-1"
-                      />
-                    ) : (
-                      <span
-                        onDoubleClick={() => {
-                          renamingRef.current = false;
-                          setRenamingImage(file.name);
-                          setRenameValue(file.name);
-                        }}
-                        className="cursor-pointer block truncate"
-                        title={file.name}
-                      >
-                        {file.name}
-                      </span>
-                    )}
-                    <div className="flex items-center justify-between mt-1">
-                      <span
-                        className="text-[10px] text-white/40 truncate"
-                        title={formatDate(file.date)}
-                      >
-                        {formatDate(file.date)}
-                      </span>
-                      <div className="flex gap-1 shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleFavorite(file.name);
-                          }}
-                          className={`text-xs ${favorites.has(file.name) ? "text-yellow-400" : "text-white/30 hover:text-yellow-400"}`}
-                        >
-                          <Star size={15} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(file.name);
-                          }}
-                          className="text-xs text-red-400 hover:text-red-300"
-                        >
-                          <X size={15} />
-                        </button>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-white/30">
-                      {formatSize(file.size)}
-                    </span>
-                  </div>
-                </div>
+                  thumbnail={
+                    <img
+                      onClick={() => handleImageClick(file)}
+                      src={`${baseUrl}/${encodeURIComponent(file.name)}`}
+                      alt={file.name}
+                      className="w-full h-48 object-cover"
+                      loading="lazy"
+                    />
+                  }
+                  renaming={renamingImage === file.name}
+                  renameValue={renameValue}
+                  onRenameChange={setRenameValue}
+                  onRenameCommit={() => handleRename(file.name, renameValue)}
+                  onStartRename={() => {
+                    renamingRef.current = false;
+                    setRenamingImage(file.name);
+                    setRenameValue(file.name);
+                  }}
+                />
               ))}
             </div>
             {page < totalPages && (
