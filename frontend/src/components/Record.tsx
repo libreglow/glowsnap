@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ArrowLeft, RefreshCw, Film, Search } from "lucide-react";
+import { ArrowLeft, RefreshCw, Film, Search, Star } from "lucide-react";
 import { RecordProps, Recording } from "@/types/types";
 import {
   ListRecordings,
   GetRecordingsBaseURL,
+  GetSettings,
+  UpdateSettings,
 } from "../../wailsjs/go/main/App";
+import { settings } from "../../wailsjs/go/models";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -16,17 +19,62 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProps) {
+export default function Record({
+  onBackToPalette,
+  onSwitchToStudio,
+}: RecordProps) {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [baseUrl, setBaseUrl] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selectedRecording, setSelectedRecording] = useState<Recording | null>(null);
+  const [selectedRecording, setSelectedRecording] = useState<Recording | null>(
+    null,
+  );
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za">(
     "newest",
   );
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const cfg = await GetSettings();
+        if (!active) return;
+        setFavorites(new Set(cfg.favorites?.recordings ?? []));
+      } catch {
+        if (active) setFavorites(new Set());
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const toggleFavorite = async (fileName: string) => {
+    setFavorites((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileName)) newSet.delete(fileName);
+      else newSet.add(fileName);
+      return newSet;
+    });
+    try {
+      const cfg = await GetSettings();
+      const favs = new Set(cfg.favorites?.recordings ?? []);
+      if (favs.has(fileName)) favs.delete(fileName);
+      else favs.add(fileName);
+      const next = settings.Settings.createFrom({
+        ...cfg,
+        favorites: { ...(cfg.favorites ?? {}), recordings: [...favs] },
+      });
+      await UpdateSettings(next);
+    } catch (err) {
+      console.error("Failed to save favorite:", err);
+    }
+  };
 
   const loadRecordings = async () => {
     try {
@@ -86,12 +134,20 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
       filtered = filtered.filter((r) => r.name.toLowerCase().includes(q));
     }
 
+    if (showFavoritesOnly) {
+      filtered = filtered.filter((r) => favorites.has(r.name));
+    }
+
     switch (sortOrder) {
       case "newest":
-        filtered.sort((a, b) => parseDateFromName(b.name) - parseDateFromName(a.name));
+        filtered.sort(
+          (a, b) => parseDateFromName(b.name) - parseDateFromName(a.name),
+        );
         break;
       case "oldest":
-        filtered.sort((a, b) => parseDateFromName(a.name) - parseDateFromName(b.name));
+        filtered.sort(
+          (a, b) => parseDateFromName(a.name) - parseDateFromName(b.name),
+        );
         break;
       case "az":
         filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -102,7 +158,7 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
     }
 
     return filtered;
-  }, [recordings, debouncedSearch, sortOrder]);
+  }, [recordings, debouncedSearch, sortOrder, showFavoritesOnly, favorites]);
 
   if (selectedRecording) {
     return (
@@ -161,9 +217,7 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
           >
             Studio
           </button>
-          <button
-            className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium"
-          >
+          <button className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium">
             Record
           </button>
         </div>
@@ -220,6 +274,14 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
           </div>
 
           <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            className={`p-2 rounded-lg ${showFavoritesOnly ? "bg-yellow-500/20 text-yellow-400" : "bg-white/5 text-white/60"} hover:bg-white/10`}
+            title="Show favorites only"
+          >
+            <Star size={14} />
+          </button>
+
+          <button
             onClick={loadRecordings}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium hover:bg-white/10 transition-colors"
           >
@@ -253,18 +315,38 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
             </span>
             <div className="flex flex-col gap-0.5">
               {processedRecordings.map((rec) => (
-                <button
+                <div
                   key={rec.name}
                   onClick={() => handleSelectRecording(rec)}
-                  className="text-left px-3 py-2 rounded-lg text-xs transition-colors text-white/60 hover:bg-white/5 hover:text-white/90"
+                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs transition-colors text-white/60 hover:bg-white/5 hover:text-white/90 cursor-pointer group"
                 >
-                  <span className="block truncate">{rec.name}</span>
-                  {formatDate(rec.name) && (
-                    <span className="text-[10px] text-white/30">
-                      {formatDate(rec.name)}
-                    </span>
-                  )}
-                </button>
+                  <div className="min-w-0">
+                    <span className="block truncate">{rec.name}</span>
+                    {formatDate(rec.name) && (
+                      <span className="text-[10px] text-white/30">
+                        {formatDate(rec.name)}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(rec.name);
+                    }}
+                    className={`text-xs shrink-0 ${
+                      favorites.has(rec.name)
+                        ? "text-yellow-400"
+                        : "text-white/30 hover:text-yellow-400"
+                    }`}
+                    title={
+                      favorites.has(rec.name)
+                        ? "Remove from favorites"
+                        : "Add to favorites"
+                    }
+                  >
+                    <Star size={15} />
+                  </button>
+                </div>
               ))}
             </div>
           </div>

@@ -60,6 +60,11 @@ type Shortcuts struct {
 	Cancel         string `json:"cancel"`
 }
 
+type Favorites struct {
+	Recordings  []string `json:"recordings"`
+	Screenshots []string `json:"screenshots"`
+}
+
 type Settings struct {
 	General         General           `json:"general"`
 	Screenshot      Screenshot        `json:"screenshot"`
@@ -68,6 +73,7 @@ type Settings struct {
 	Advanced        Advanced          `json:"advanced"`
 	Shortcuts       Shortcuts         `json:"shortcuts"`
 	CustomShortcuts map[string]string `json:"customShortcuts"`
+	Favorites       Favorites         `json:"favorites"`
 }
 
 type legacySettings struct {
@@ -117,6 +123,10 @@ func Defaults() Settings {
 			DefaultOpacity:     1,
 		},
 		Shortcuts: DefaultShortcuts(),
+		Favorites: Favorites{
+			Recordings:  []string{},
+			Screenshots: []string{},
+		},
 	}
 }
 
@@ -318,6 +328,13 @@ func mergeDefaults(def Settings, stored *Settings, data []byte) {
 		stored.Advanced.VerboseLogging = def.Advanced.VerboseLogging
 	}
 
+	if !present("favorites", "recordings") {
+		stored.Favorites.Recordings = def.Favorites.Recordings
+	}
+	if !present("favorites", "screenshots") {
+		stored.Favorites.Screenshots = def.Favorites.Screenshots
+	}
+
 	if !present("shortcuts", "takeScreenshot") {
 		stored.Shortcuts.TakeScreenshot = def.Shortcuts.TakeScreenshot
 	}
@@ -341,6 +358,12 @@ func mergeDefaults(def Settings, stored *Settings, data []byte) {
 func normalize(s Settings) Settings {
 	if s.CustomShortcuts == nil {
 		s.CustomShortcuts = map[string]string{}
+	}
+	if s.Favorites.Recordings == nil {
+		s.Favorites.Recordings = []string{}
+	}
+	if s.Favorites.Screenshots == nil {
+		s.Favorites.Screenshots = []string{}
 	}
 	for id, combo := range s.CustomShortcuts {
 		s.CustomShortcuts[id] = strings.TrimSpace(combo)
