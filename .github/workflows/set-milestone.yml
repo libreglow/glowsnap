@@ -1,0 +1,38 @@
+name: Set Feature Milestone
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  set-milestone:
+    if: startsWith(github.event.issue.title, '[Feature]')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set milestone
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+
+            const milestone = milestones.find(m => m.title === 'v1.1.2');
+
+            if (!milestone) {
+              core.setFailed('Milestone v1.1.2 not found');
+              return;
+            }
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              milestone: milestone.number
+            });
