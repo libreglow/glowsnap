@@ -2,7 +2,7 @@ name: Issue Automation
 
 on:
   issues:
-    types: [opened]
+    types: [opened, labeled]
 
 permissions:
   issues: write
@@ -12,33 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set Milestone
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { data: milestones } = await github.rest.issues.listMilestones({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open'
-            });
-
-            const milestone = milestones.find(m => m.title === 'v1.1.2');
-
-            if (!milestone) {
-              core.setFailed('Milestone v1.1.2 not found');
-              return;
-            }
-
-            await github.rest.issues.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              milestone: milestone.number
-            });
-
-            console.log('Milestone set to v1.1.2');
-
       - name: Add Under review Label
+        if: github.event.action == 'opened'
         uses: actions/github-script@v7
         with:
           script: |
@@ -52,11 +27,11 @@ jobs:
             console.log('Added Under review label');
 
       - name: Set Issue Type
+        if: github.event.action == 'opened'
         uses: actions/github-script@v7
         with:
           script: |
             const issue = context.payload.issue;
-
             const labels = issue.labels.map(label => label.name);
 
             let issueTypeName = null;
@@ -121,4 +96,33 @@ jobs:
 
             console.log(
               `Issue #${issue.number} assigned to type: ${updated.updateIssue.issue.issueType.name}`
+            );
+
+      - name: Set Milestone
+        if: github.event.action == 'labeled' && github.event.label.name == 'Accepted'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+
+            const milestone = milestones.find(m => m.title === 'v1.1.2');
+
+            if (!milestone) {
+              core.setFailed('Milestone v1.1.2 not found');
+              return;
+            }
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              milestone: milestone.number
+            });
+
+            console.log(
+              `Issue #${context.issue.number} assigned to milestone v1.1.2`
             );
