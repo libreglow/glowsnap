@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ArrowLeft, RefreshCw, Film, Search, Star } from "lucide-react";
+import { ArrowLeft, RefreshCw, Film, Search, Star, X } from "lucide-react";
 import { RecordProps, Recording } from "@/types/types";
 import {
   ListRecordings,
   GetRecordingsBaseURL,
   GetSettings,
   UpdateSettings,
+  DeleteRecording,
 } from "../../wailsjs/go/main/App";
 import { settings } from "../../wailsjs/go/models";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -54,26 +55,25 @@ export default function Record({
     };
   }, []);
 
-  const toggleFavorite = async (fileName: string) => {
-    setFavorites((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(fileName)) newSet.delete(fileName);
-      else newSet.add(fileName);
-      return newSet;
-    });
+  const saveRecordingsFavorites = async (names: Set<string>) => {
     try {
       const cfg = await GetSettings();
-      const favs = new Set(cfg.favorites?.recordings ?? []);
-      if (favs.has(fileName)) favs.delete(fileName);
-      else favs.add(fileName);
       const next = settings.Settings.createFrom({
         ...cfg,
-        favorites: { ...(cfg.favorites ?? {}), recordings: [...favs] },
+        favorites: { ...(cfg.favorites ?? {}), recordings: [...names] },
       });
       await UpdateSettings(next);
     } catch (err) {
-      console.error("Failed to save favorite:", err);
+      console.error("Failed to save favorites:", err);
     }
+  };
+
+  const toggleFavorite = (fileName: string) => {
+    const next = new Set(favorites);
+    if (next.has(fileName)) next.delete(fileName);
+    else next.add(fileName);
+    setFavorites(next);
+    void saveRecordingsFavorites(next);
   };
 
   const loadRecordings = async () => {
@@ -93,6 +93,33 @@ export default function Record({
   useEffect(() => {
     loadRecordings();
   }, []);
+
+  const syncRecordings = async () => {
+    try {
+      const files = await ListRecordings();
+      setRecordings(files ?? []);
+    } catch (err) {
+      console.error("Failed to reload recordings:", err);
+    }
+  };
+
+  const handleDelete = async (fileName: string) => {
+    try {
+      const cfg = await GetSettings();
+      const shouldConfirm = cfg.general?.confirmDelete ?? true;
+      if (shouldConfirm && !window.confirm(`Delete ${fileName}?`)) {
+        return;
+      }
+      await DeleteRecording(fileName);
+      const next = new Set(favorites);
+      next.delete(fileName);
+      setFavorites(next);
+      void saveRecordingsFavorites(next);
+      await syncRecordings();
+    } catch (err) {
+      console.error("Failed to delete recording:", err);
+    }
+  };
 
   const handleSelectRecording = (recording: Recording) => {
     setSelectedRecording(recording);
@@ -345,6 +372,16 @@ export default function Record({
                     }
                   >
                     <Star size={15} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(rec.name);
+                    }}
+                    className="text-xs shrink-0 text-red-400 hover:text-red-300"
+                    title="Delete recording"
+                  >
+                    <X size={15} />
                   </button>
                 </div>
               ))}

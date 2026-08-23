@@ -571,6 +571,28 @@ func (a *App) DeleteScreenshot(fileName string) error {
 	return os.Remove(path)
 }
 
+func (a *App) DeleteRecording(fileName string) error {
+	dir := settings.Load().RecordingSaveDir()
+	path := filepath.Join(dir, fileName)
+	if err := os.Remove(path); err != nil {
+		return err
+	}
+
+	s := settings.Load()
+	favs := s.Favorites.Recordings
+	var kept []string
+	for _, name := range favs {
+		if name != fileName {
+			kept = append(kept, name)
+		}
+	}
+	if len(kept) != len(favs) {
+		s.Favorites.Recordings = kept
+		return settings.Save(s)
+	}
+	return nil
+}
+
 type RecordingInfo struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
