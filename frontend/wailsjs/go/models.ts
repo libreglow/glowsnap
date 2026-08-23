@@ -110,6 +110,20 @@ export namespace settings {
 	        this.defaultOpacity = source["defaultOpacity"];
 	    }
 	}
+	export class Favorites {
+	    recordings: string[];
+	    screenshots: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Favorites(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.recordings = source["recordings"];
+	        this.screenshots = source["screenshots"];
+	    }
+	}
 	export class General {
 	    confirmDelete: boolean;
 	
@@ -202,6 +216,7 @@ export namespace settings {
 	    advanced: Advanced;
 	    shortcuts: Shortcuts;
 	    customShortcuts: Record<string, string>;
+	    favorites: Favorites;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -216,6 +231,7 @@ export namespace settings {
 	        this.advanced = this.convertValues(source["advanced"], Advanced);
 	        this.shortcuts = this.convertValues(source["shortcuts"], Shortcuts);
 	        this.customShortcuts = source["customShortcuts"];
+	        this.favorites = this.convertValues(source["favorites"], Favorites);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

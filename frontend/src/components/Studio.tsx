@@ -81,7 +81,10 @@ function dateGroupLabel(unixSeconds: number): string {
   });
 }
 
-export default function Studio({ onBackToPalette, onSwitchToRecord }: StudioProps) {
+export default function Studio({
+  onBackToPalette,
+  onSwitchToRecord,
+}: StudioProps) {
   const [images, setImages] = useState<Screenshot[]>([]);
   const [baseUrl, setBaseUrl] = useState("");
   const [loading, setLoading] = useState(true);
@@ -360,9 +363,7 @@ export default function Studio({ onBackToPalette, onSwitchToRecord }: StudioProp
         </div>
 
         <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10 ml-auto mr-auto">
-          <button
-            className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium"
-          >
+          <button className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium">
             Studio
           </button>
           <button
