@@ -8,7 +8,7 @@ permissions:
   issues: write
 
 jobs:
-  set-milestone:
+  set-issue-metadata:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,12 +36,19 @@ jobs:
               milestone: milestone.number
             });
 
-            console.log(`Issue #${context.issue.number} assigned to milestone v1.1.2`);
+      - name: Add Under review Label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['Under review']
+            });
 
-  set-issue-type:
-    runs-on: ubuntu-latest
+            console.log('Added "Under review" label');
 
-    steps:
       - name: Set Issue Type
         uses: actions/github-script@v7
         with:
@@ -96,7 +103,6 @@ jobs:
                   issueTypeId: $issueTypeId
                 }) {
                   issue {
-                    id
                     issueType {
                       name
                     }
