@@ -8,7 +8,7 @@ permissions:
   issues: write
 
 jobs:
-  set-milestone:
+  set-issue-metadata:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,29 +36,39 @@ jobs:
               milestone: milestone.number
             });
 
-            console.log(`Issue #${context.issue.number} assigned to milestone v1.1.2`);
+            console.log('Milestone set to v1.1.2');
 
-  set-issue-type:
-    runs-on: ubuntu-latest
+      - name: Add Under review Label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['Under review']
+            });
 
-    steps:
+            console.log('Added Under review label');
+
       - name: Set Issue Type
         uses: actions/github-script@v7
         with:
           script: |
             const issue = context.payload.issue;
-            const title = issue.title;
+
+            const labels = issue.labels.map(label => label.name);
 
             let issueTypeName = null;
 
-            if (title.startsWith('[Feature]')) {
-              issueTypeName = 'Feature';
-            } else if (title.startsWith('[Bug]')) {
+            if (labels.includes('bug')) {
               issueTypeName = 'Bug';
+            } else if (labels.includes('enhancement')) {
+              issueTypeName = 'Feature';
             }
 
             if (!issueTypeName) {
-              console.log('No matching issue type.');
+              console.log('No matching issue type label found.');
               return;
             }
 
@@ -96,7 +106,6 @@ jobs:
                   issueTypeId: $issueTypeId
                 }) {
                   issue {
-                    id
                     issueType {
                       name
                     }
