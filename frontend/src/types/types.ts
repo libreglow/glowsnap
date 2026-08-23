@@ -14,6 +14,7 @@ export interface PaletteProps {
 
 export interface StudioProps {
   onBackToPalette: () => void;
+  onSwitchToRecord: () => void;
 }
 
 export interface ToolButtonProps {
@@ -25,6 +26,7 @@ export interface ToolButtonProps {
 export type WindowMode =
   | "palette"
   | "studio"
+  | "record"
   | "closed"
   | "recording"
   | "settings"
@@ -46,17 +48,13 @@ export interface OverlayProps {
 export interface SettingsPanelProps {
   onBack: () => void;
 }
-export interface PaletteProps {
-  onTakeScreenshot: () => void;
-  onTakeAreaScreenshot: () => void;
+
+export interface RecordProps {
+  onBackToPalette: () => void;
   onSwitchToStudio: () => void;
-  onClose: () => void;
-  onStartRecording: () => void;
 }
 
-export interface StudioProps {
-  onBackToPalette: () => void;
-}
+export type Recording = main.RecordingInfo;
 
 export interface RecordingBarProps {
   onStop: () => void;
