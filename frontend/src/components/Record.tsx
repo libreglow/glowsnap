@@ -150,7 +150,7 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
             <span>Palette</span>
           </button>
           <h1 className="text-sm font-semibold text-white/90">
-            GlowSnap
+            GlowSnap Studio
           </h1>
         </div>
 
