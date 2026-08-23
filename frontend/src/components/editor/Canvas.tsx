@@ -30,6 +30,8 @@ const HANDLE_STROKE = "#4A90D9";
 const CROP_HANDLE_SIZE = 16;
 const MIN_CROP_SIZE = 20;
 
+const ERASER_MIN_WIDTH = 16;
+
 type CropHandle = "tl" | "tr" | "bl" | "br";
 
 const clamp = (v: number, min: number, max: number) =>
@@ -187,6 +189,7 @@ interface CanvasProps {
   textDecoration?: string;
   fontSize?: number;
   fontFamily?: string;
+  eraserSize?: number;
 }
 
 function snapToNearestAngle(angle: number): number {
@@ -268,6 +271,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       textDecoration,
       fontSize = 24,
       fontFamily = "Inter",
+      eraserSize,
     },
     ref,
   ) => {
@@ -290,6 +294,15 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       panX: number;
       panY: number;
     } | null>(null);
+
+    const isErasing = useRef(false);
+    const erasingShapeId = useRef<string | null>(null);
+    const currentEraseStroke = useRef<{
+      points: number[];
+      strokeWidth: number;
+    } | null>(null);
+    const shapeGroupRefs = useRef<Map<string, Konva.Group>>(new Map());
+    const layerRef = useRef<Konva.Layer>(null);
 
     useImperativeHandle(ref, () => stageRef.current as Konva.Stage);
     const groupOffsetX = imageTransform.x;
@@ -365,6 +378,41 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       if (!relative) return null;
       return { x: relative.x - groupOffsetX, y: relative.y - groupOffsetY };
     }, [groupOffsetX, groupOffsetY]);
+
+    const getShapeIdAtPointer = useCallback((): string | null => {
+      const stage = stageRef.current;
+      const layer = layerRef.current;
+      if (!stage || !layer) return null;
+      const pos = stage.getPointerPosition();
+      if (!pos) return null;
+      const shapeIds = new Set(shapes.map((s) => s.id));
+      const hit = layer.getIntersection(pos);
+      if (!hit) return null;
+      let node: Konva.Node | null = hit;
+      while (node) {
+        const id = node.id();
+        if (id && shapeIds.has(id)) return id;
+        node = node.getParent();
+      }
+      return null;
+    }, [shapes]);
+
+    const recacheShapeGroup = useCallback((id: string) => {
+      const node = shapeGroupRefs.current.get(id);
+      if (!node) return;
+      requestAnimationFrame(() => {
+        if (!node.getStage()) return; 
+        node.clearCache();
+        node.cache();
+        node.getLayer()?.batchDraw();
+      });
+    }, []);
+
+    useEffect(() => {
+      shapes.forEach((s) => {
+        if (s.eraseStrokes?.length) recacheShapeGroup(s.id);
+      });
+    }, [shapes]);
 
     const getGradientEndPoint = () => {
       const rad = (backgroundSettings.angle * Math.PI) / 180;
@@ -666,6 +714,27 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
           return;
         }
 
+        if (selectedTool === "eraser") {
+          const id = getShapeIdAtPointer();
+          if (!id) return;
+          const shape = shapes.find((s) => s.id === id);
+          if (!shape) return;
+
+          isErasing.current = true;
+          erasingShapeId.current = id;
+
+          const brushWidth = Math.max(
+            ERASER_MIN_WIDTH,
+            eraserSize ?? strokeWidth * 4,
+          );
+          const newStroke = { points: [pos.x, pos.y], strokeWidth: brushWidth };
+          currentEraseStroke.current = newStroke;
+
+          const strokes = [...(shape.eraseStrokes || []), newStroke];
+          updateShape(id, { eraseStrokes: strokes }, false);
+          return;
+        }
+
         if (selectedTool === "pen" || selectedTool === "arrow") {
           isDrawing.current = true;
           startPointRef.current = { x: pos.x, y: pos.y };
@@ -717,6 +786,10 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         fillEnabled,
         addShape,
         getRelativePointer,
+        getShapeIdAtPointer,
+        updateShape,
+        shapes,
+        eraserSize,
         pan,
       ],
     );
@@ -735,6 +808,18 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
 
         const point = getRelativePointer();
         if (!point) return;
+
+        if (isErasing.current && erasingShapeId.current && currentEraseStroke.current) {
+          currentEraseStroke.current.points.push(point.x, point.y);
+          const id = erasingShapeId.current;
+          const shape = shapes.find((s) => s.id === id);
+          if (shape) {
+            const strokes = [...(shape.eraseStrokes || [])];
+            strokes[strokes.length - 1] = { ...currentEraseStroke.current };
+            updateShape(id, { eraseStrokes: strokes }, false);
+          }
+          return;
+        }
 
         if (activeCropHandle.current && cropRect && image) {
           const next = resizeCrop(
@@ -806,6 +891,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         updateShape,
         setCropRect,
         getRelativePointer,
+        shapes,
         cropRect,
         image,
         imageTransform.scaleX,
@@ -821,6 +907,15 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         panStartRef.current = null;
         const el = stageRef.current?.container();
         if (el) el.style.cursor = "";
+      }
+      if (isErasing.current) {
+        isErasing.current = false;
+        if (erasingShapeId.current) {
+          commitShapes();
+          recacheShapeGroup(erasingShapeId.current);
+        }
+        erasingShapeId.current = null;
+        currentEraseStroke.current = null;
       }
       if (isDrawing.current && drawingRef.current) {
         const shape = drawingRef.current;
@@ -852,7 +947,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       }
       cropStartPos.current = null;
       activeCropHandle.current = null;
-    }, [commitShapes, setSelectedId, onChangeTool, deleteShape]);
+    }, [commitShapes, setSelectedId, onChangeTool, deleteShape, recacheShapeGroup]);
 
     const handleStageClick = useCallback(
       (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -873,7 +968,8 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
           selectedTool === "pen" ||
           selectedTool === "arrow" ||
           selectedTool === "rectangle" ||
-          selectedTool === "circle"
+          selectedTool === "circle" ||
+          selectedTool === "eraser"
         )
           return;
         const pos = getRelativePointer();
@@ -945,9 +1041,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       ],
     );
 
-    const renderShape = (shape: ShapeConfig) => {
-      if (editingTextId === shape.id) return null;
-
+    const renderShapeNode = (shape: ShapeConfig) => {
       const commonProps = {
         id: shape.id,
         key: shape.id,
@@ -1092,6 +1186,42 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       }
     };
 
+    const renderShape = (shape: ShapeConfig) => {
+      if (editingTextId === shape.id) return null;
+
+      const node = renderShapeNode(shape);
+      if (!node) return null;
+
+      const hasErase = !!shape.eraseStrokes?.length;
+
+      return (
+        <Group
+          key={`group-${shape.id}`}
+          ref={(instance) => {
+            if (instance) shapeGroupRefs.current.set(shape.id, instance);
+            else shapeGroupRefs.current.delete(shape.id);
+          }}
+        >
+          {node}
+          {hasErase &&
+            shape.eraseStrokes!.map((stroke, i) => (
+              <Line
+                key={`${shape.id}-erase-${i}`}
+                points={stroke.points}
+                stroke="#000"
+                strokeWidth={stroke.strokeWidth}
+                lineCap="round"
+                lineJoin="round"
+                tension={0}
+                globalCompositeOperation="destination-out"
+                listening={false}
+                perfectDrawEnabled={false}
+              />
+            ))}
+        </Group>
+      );
+    };
+
     const cropStage =
       cropMode && cropRect
         ? {
@@ -1115,9 +1245,13 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        style={{ margin: "auto", display: "block" }}
+        style={{
+          margin: "auto",
+          display: "block",
+          cursor: selectedTool === "eraser" ? "crosshair" : undefined,
+        }}
       >
-        <Layer>
+        <Layer ref={layerRef}>
           {renderBackground()}
           <Group ref={contentGroupRef} x={groupOffsetX} y={groupOffsetY}>
             {image && (

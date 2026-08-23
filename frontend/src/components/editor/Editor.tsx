@@ -83,6 +83,7 @@ function normalizeTool(value: string | undefined): Tool {
     "pen",
     "rectangle",
     "circle",
+    "eraser",
   ];
   return allowed.includes(value as Tool) ? (value as Tool) : "select";
 }

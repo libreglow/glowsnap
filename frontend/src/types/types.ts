@@ -87,7 +87,8 @@ export type Tool =
   | "number"
   | "pen"
   | "rectangle"
-  | "circle";
+  | "circle"
+  | "eraser";
 
 export interface ShapeConfig {
   id: string;
@@ -112,6 +113,7 @@ export interface ShapeConfig {
   textDecoration?: string;
   rotation?: number;
   fillEnabled?: boolean;
+  eraseStrokes?: { points: number[]; strokeWidth: number }[];
 }
 
 export interface EditorProps {

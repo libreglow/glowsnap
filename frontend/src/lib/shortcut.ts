@@ -200,6 +200,7 @@ export const TOOL_SHORTCUT_KEYS: Record<string, Tool> = {
   p: "pen",
   r: "rectangle",
   o: "circle",
+  e: "eraser",
 };
 
 const TOOL_LABELS: Record<Tool, string> = {
@@ -211,6 +212,7 @@ const TOOL_LABELS: Record<Tool, string> = {
   pen: "Pen",
   rectangle: "Rectangle",
   circle: "Circle",
+  eraser: "Eraser",
 };
 
 export const TOOL_SHORTCUTS: ToolShortcut[] = (
