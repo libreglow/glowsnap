@@ -16,6 +16,8 @@ export function GetAppVersion():Promise<string>;
 
 export function GetHomeDir():Promise<string>;
 
+export function GetRecordingsBaseURL():Promise<string>;
+
 export function GetSavedMicrophone():Promise<string>;
 
 export function GetScreenshotsBaseURL():Promise<string>;
@@ -27,6 +29,8 @@ export function GetSystemAudioSupported():Promise<screencast.SystemAudioInfo>;
 export function GetVideosDir():Promise<string>;
 
 export function ListMicrophones():Promise<Array<screencast.AudioDevice>>;
+
+export function ListRecordings():Promise<Array<main.RecordingInfo>>;
 
 export function ListScreenshots():Promise<Array<main.ScreenshotInfo>>;
 
@@ -41,6 +45,8 @@ export function ResetSettings():Promise<settings.Settings>;
 export function ResizeToPalette():Promise<void>;
 
 export function ResizeToPreferences():Promise<void>;
+
+export function ResizeToRecord():Promise<void>;
 
 export function ResizeToSettings():Promise<void>;
 

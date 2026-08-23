@@ -8,6 +8,7 @@ import {
 import {
   ResizeToPalette,
   ResizeToStudio,
+  ResizeToRecord,
   ResizeToSettings,
   ResizeToPreferences,
   TakeScreenshot,
@@ -28,6 +29,7 @@ import {
 import { AnimatePresence } from "framer-motion";
 import Palette from "./components/Palette";
 import Studio from "./components/Studio";
+import Record from "./components/Record";
 import RecordingBar from "./components/RecordingBar";
 import RecordingSettings from "./components/RecordingSettings";
 import SettingsPanel from "./components/SettingsPanel";
@@ -60,6 +62,11 @@ export default function App() {
   const switchToStudio = () => {
     setMode("studio");
     ResizeToStudio();
+  };
+
+  const switchToRecord = () => {
+    setMode("record");
+    ResizeToRecord();
   };
 
   const switchToPreferences = () => {
@@ -274,7 +281,19 @@ export default function App() {
           />
         )}
 
-        {mode === "studio" && <Studio onBackToPalette={switchToPalette} />}
+        {mode === "studio" && (
+          <Studio
+            onBackToPalette={switchToPalette}
+            onSwitchToRecord={switchToRecord}
+          />
+        )}
+
+        {mode === "record" && (
+          <Record
+            onBackToPalette={switchToPalette}
+            onSwitchToStudio={switchToStudio}
+          />
+        )}
 
         {mode === "settings" && (
           <RecordingSettings

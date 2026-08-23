@@ -26,6 +26,10 @@ export function GetHomeDir() {
   return window['go']['main']['App']['GetHomeDir']();
 }
 
+export function GetRecordingsBaseURL() {
+  return window['go']['main']['App']['GetRecordingsBaseURL']();
+}
+
 export function GetSavedMicrophone() {
   return window['go']['main']['App']['GetSavedMicrophone']();
 }
@@ -48,6 +52,10 @@ export function GetVideosDir() {
 
 export function ListMicrophones() {
   return window['go']['main']['App']['ListMicrophones']();
+}
+
+export function ListRecordings() {
+  return window['go']['main']['App']['ListRecordings']();
 }
 
 export function ListScreenshots() {
@@ -76,6 +84,10 @@ export function ResizeToPalette() {
 
 export function ResizeToPreferences() {
   return window['go']['main']['App']['ResizeToPreferences']();
+}
+
+export function ResizeToRecord() {
+  return window['go']['main']['App']['ResizeToRecord']();
 }
 
 export function ResizeToSettings() {

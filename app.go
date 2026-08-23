@@ -32,6 +32,8 @@ type App struct {
 	httpServer        *http.Server
 	screenshotsURL    string
 	screenshotsDir    string
+	recordingsURL     string
+	recordingsDir     string
 	serverMu          sync.Mutex
 
 	overlayMu          sync.Mutex
@@ -72,10 +74,19 @@ func (a *App) startup(ctx context.Context) {
 		runtime.LogError(ctx, "Failed to create screenshots directory: "+err.Error())
 	}
 
+	a.recordingsDir = settings.Load().RecordingSaveDir()
+	if err := os.MkdirAll(a.recordingsDir, 0755); err != nil {
+		runtime.LogError(ctx, "Failed to create recordings directory: "+err.Error())
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		http.FileServer(http.Dir(a.screenshotsDir)).ServeHTTP(w, r)
+	}))
+	mux.Handle("/recordings/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		http.StripPrefix("/recordings/", http.FileServer(http.Dir(a.recordingsDir))).ServeHTTP(w, r)
 	}))
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -85,6 +96,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
 	a.screenshotsURL = fmt.Sprintf("http://127.0.0.1:%d", port)
+	a.recordingsURL = fmt.Sprintf("http://127.0.0.1:%d/recordings", port)
 
 	a.httpServer = &http.Server{Handler: mux}
 	go func() {
@@ -94,6 +106,7 @@ func (a *App) startup(ctx context.Context) {
 	}()
 
 	runtime.LogInfo(ctx, "Screenshots server started at "+a.screenshotsURL)
+	runtime.LogInfo(ctx, "Recordings server started at "+a.recordingsURL)
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -556,4 +569,48 @@ func (a *App) DeleteScreenshot(fileName string) error {
 	dir := settings.Load().ScreenshotSaveDir()
 	path := filepath.Join(dir, fileName)
 	return os.Remove(path)
+}
+
+type RecordingInfo struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+func (a *App) ListRecordings() ([]RecordingInfo, error) {
+	dir := settings.Load().RecordingSaveDir()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []RecordingInfo
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		ext := filepath.Ext(entry.Name())
+		if ext != ".mp4" {
+			continue
+		}
+		full := filepath.Join(dir, entry.Name())
+		files = append(files, RecordingInfo{
+			Name: entry.Name(),
+			Path: full,
+		})
+	}
+	if files == nil {
+		files = []RecordingInfo{}
+	}
+	return files, nil
+}
+
+func (a *App) GetRecordingsBaseURL() string {
+	return a.recordingsURL
+}
+
+func (a *App) ResizeToRecord() {
+	runtime.WindowMaximise(a.ctx)
 }
