@@ -1,0 +1,115 @@
+name: Issue Automation
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  set-milestone:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set Milestone
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+
+            const milestone = milestones.find(m => m.title === 'v1.1.2');
+
+            if (!milestone) {
+              core.setFailed('Milestone v1.1.2 not found');
+              return;
+            }
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              milestone: milestone.number
+            });
+
+            console.log(`Issue #${context.issue.number} assigned to milestone v1.1.2`);
+
+  set-issue-type:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set Issue Type
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title;
+
+            let issueTypeName = null;
+
+            if (title.startsWith('[Feature]')) {
+              issueTypeName = 'Feature';
+            } else if (title.startsWith('[Bug]')) {
+              issueTypeName = 'Bug';
+            }
+
+            if (!issueTypeName) {
+              console.log('No matching issue type.');
+              return;
+            }
+
+            const query = `
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  issueTypes(first: 100) {
+                    nodes {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query, {
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+
+            const issueType = result.repository.issueTypes.nodes.find(
+              type => type.name === issueTypeName
+            );
+
+            if (!issueType) {
+              core.setFailed(`Issue type "${issueTypeName}" not found.`);
+              return;
+            }
+
+            const mutation = `
+              mutation($issueId: ID!, $issueTypeId: ID!) {
+                updateIssue(input: {
+                  id: $issueId
+                  issueTypeId: $issueTypeId
+                }) {
+                  issue {
+                    id
+                    issueType {
+                      name
+                    }
+                  }
+                }
+              }
+            `;
+
+            const updated = await github.graphql(mutation, {
+              issueId: issue.node_id,
+              issueTypeId: issueType.id
+            });
+
+            console.log(
+              `Issue #${issue.number} assigned to type: ${updated.updateIssue.issue.issueType.name}`
+            );
