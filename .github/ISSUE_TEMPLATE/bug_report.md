@@ -3,6 +3,7 @@ name: Bug report
 about: Report a problem so we can fix it
 title: "[Bug] "
 labels: bug
+milestone: v1.1.2
 assignees: ""
 ---
 
