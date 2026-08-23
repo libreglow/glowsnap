@@ -1,4 +1,4 @@
-name: Set Feature Milestone
+name: Set Issue Milestone
 
 on:
   issues:
@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   set-milestone:
-    if: startsWith(github.event.issue.title, '[Feature]')
     runs-on: ubuntu-latest
 
     steps:
