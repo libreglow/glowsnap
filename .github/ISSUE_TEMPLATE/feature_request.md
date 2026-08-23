@@ -3,7 +3,6 @@ name: Feature request
 about: Suggest an idea for GlowSnap
 title: "[Feature] "
 labels: enhancement
-milestone: v1.1.2
 assignees: ""
 ---
 
