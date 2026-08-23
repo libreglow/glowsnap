@@ -87,7 +87,8 @@ export type Tool =
   | "number"
   | "pen"
   | "rectangle"
-  | "circle";
+  | "circle"
+  | "eraser";
 
 export interface ShapeConfig {
   id: string;

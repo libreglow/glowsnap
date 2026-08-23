@@ -9,6 +9,7 @@ import {
   Square,
   Circle as CircleIcon,
   MousePointer2,
+  Eraser,
 } from "lucide-react";
 import { Tool } from "@/types/types";
 import { TOOL_SHORTCUTS, applyShortcutOverrides } from "@/lib/shortcut";
@@ -29,6 +30,7 @@ const tools: { tool: Tool; icon: React.ElementType; label: string }[] = [
   { tool: "pen", icon: Pen, label: "Pen" },
   { tool: "rectangle", icon: Square, label: "Rect" },
   { tool: "circle", icon: CircleIcon, label: "Circle" },
+  { tool: "eraser", icon: Eraser, label: "Eraser" },
 ];
 
 const shortcutFor = (
