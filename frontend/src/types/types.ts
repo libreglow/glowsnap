@@ -113,6 +113,7 @@ export interface ShapeConfig {
   textDecoration?: string;
   rotation?: number;
   fillEnabled?: boolean;
+  eraseStrokes?: { points: number[]; strokeWidth: number }[];
 }
 
 export interface EditorProps {
