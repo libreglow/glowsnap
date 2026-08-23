@@ -350,6 +350,17 @@ export default function Record({
                   onOpen={() => handleSelectRecording(rec)}
                   onToggleFavorite={() => toggleFavorite(rec.name)}
                   onDelete={() => handleDelete(rec.name)}
+                  thumbnail={
+                    rec.thumbnailName ? (
+                      <img
+                        onClick={() => handleSelectRecording(rec)}
+                        src={`${baseUrl}/${encodeURIComponent(rec.thumbnailName)}`}
+                        alt={rec.name}
+                        className="w-full h-48 object-cover"
+                        loading="lazy"
+                      />
+                    ) : undefined
+                  }
                 />
               ))}
             </div>

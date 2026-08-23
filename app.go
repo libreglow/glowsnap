@@ -578,6 +578,11 @@ func (a *App) DeleteRecording(fileName string) error {
 		return err
 	}
 
+	thumbPath := filepath.Join(dir, screencast.ThumbnailFileName(fileName))
+	if _, err := os.Stat(thumbPath); err == nil {
+		os.Remove(thumbPath)
+	}
+
 	s := settings.Load()
 	favs := s.Favorites.Recordings
 	var kept []string
@@ -594,8 +599,9 @@ func (a *App) DeleteRecording(fileName string) error {
 }
 
 type RecordingInfo struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name          string `json:"name"`
+	Path          string `json:"path"`
+	ThumbnailName string `json:"thumbnailName"`
 }
 
 func (a *App) ListRecordings() ([]RecordingInfo, error) {
@@ -618,9 +624,11 @@ func (a *App) ListRecordings() ([]RecordingInfo, error) {
 			continue
 		}
 		full := filepath.Join(dir, entry.Name())
+		thumbName, _ := screencast.EnsureThumbnail(full)
 		files = append(files, RecordingInfo{
-			Name: entry.Name(),
-			Path: full,
+			Name:          entry.Name(),
+			Path:          full,
+			ThumbnailName: thumbName,
 		})
 	}
 	if files == nil {

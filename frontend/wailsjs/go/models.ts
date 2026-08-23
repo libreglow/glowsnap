@@ -3,6 +3,7 @@ export namespace main {
 	export class RecordingInfo {
 	    name: string;
 	    path: string;
+	    thumbnailName: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new RecordingInfo(source);
@@ -12,6 +13,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.path = source["path"];
+	        this.thumbnailName = source["thumbnailName"];
 	    }
 	}
 	export class ScreenshotInfo {
