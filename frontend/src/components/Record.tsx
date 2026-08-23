@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { motion } from "framer-motion";
 import { ArrowLeft, RefreshCw, Film, Search } from "lucide-react";
 import { RecordProps, Recording } from "@/types/types";
 import {
@@ -107,14 +106,8 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
 
   if (selectedRecording) {
     return (
-      <motion.div
-        key="record-player"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="w-full h-full flex flex-col justify-start items-center rounded-3xl backdrop-blur-3xl border border-white/10 shadow-2xl overflow-hidden text-white bg-black"
-      >
-        <header className="flex items-center z-50 backdrop-blur-lg w-full px-6 py-3 border-b border-white/10 shrink-0 fixed top-0 left-0 gap-4">
+      <div className="fixed inset-0 z-50 w-screen h-screen min-h-screen flex flex-col justify-start items-center overflow-hidden text-white bg-black">
+        <header className="fixed top-0 left-0 right-0 z-50 flex items-center backdrop-blur-lg w-full px-6 py-3 border-b border-white/10 gap-4">
           <button
             onClick={handleBackToList}
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/15 text-xs border border-white/10 text-white/80 hover:text-white transition-transform hover:scale-105 active:scale-95"
@@ -127,33 +120,27 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
           </span>
         </header>
 
-        <div className="flex-1 w-full h-full flex items-center justify-center mt-12 pt-4 px-4">
+        <main className="flex-1 min-h-0 w-full h-screen flex items-center justify-center pt-16 px-4">
           <video
             ref={videoRef}
             controls
             autoPlay
-            className="max-w-2xl w-full max-h-[70vh] object-contain rounded-xl border border-white/10 bg-black"
+            className="w-full h-full max-w-none max-h-[calc(100vh-4rem)] object-contain rounded-none border-0 bg-black"
           >
             <source
               src={`${baseUrl}/${encodeURIComponent(selectedRecording.name)}`}
               type="video/mp4"
             />
-            Your browser does not support the video tag.
+            ERROR: While support video tag.
           </video>
-        </div>
-      </motion.div>
+        </main>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      key="record"
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      className="w-full h-full flex flex-col justify-start items-center rounded-3xl backdrop-blur-3xl border border-white/10 shadow-2xl overflow-hidden text-white bg-black"
-    >
-      <header className="flex items-center z-50 backdrop-blur-lg w-full px-6 py-3 border-b border-white/10 shrink-0 fixed top-0 left-0 gap-4">
+    <div className="fixed inset-0 z-50 w-screen h-screen min-h-screen flex flex-col justify-start items-center overflow-hidden text-white bg-black">
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center backdrop-blur-lg w-full px-6 py-3 border-b border-white/10 gap-4">
         <div className="flex items-center gap-3">
           <button
             onClick={onBackToPalette}
@@ -242,7 +229,7 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
         </div>
       </header>
 
-      <ScrollArea className="flex-1 p-4 w-full h-[95vh] mt-16">
+      <ScrollArea className="flex-1 min-h-0 p-4 w-full h-screen mt-16">
         {loading && recordings.length === 0 ? (
           <div className="flex items-center justify-center h-full text-white/40">
             <RefreshCw size={32} className="animate-spin" />
@@ -283,6 +270,6 @@ export default function Record({ onBackToPalette, onSwitchToStudio }: RecordProp
           </div>
         )}
       </ScrollArea>
-    </motion.div>
+    </div>
   );
 }
