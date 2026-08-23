@@ -14,6 +14,10 @@ export function CompletePaletteAreaScreenshot(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CompletePaletteAreaScreenshot'](arg1, arg2, arg3, arg4);
 }
 
+export function DeleteRecording(arg1) {
+  return window['go']['main']['App']['DeleteRecording'](arg1);
+}
+
 export function DeleteScreenshot(arg1) {
   return window['go']['main']['App']['DeleteScreenshot'](arg1);
 }

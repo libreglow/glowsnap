@@ -10,6 +10,8 @@ export function CancelRecording():Promise<void>;
 
 export function CompletePaletteAreaScreenshot(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
 
+export function DeleteRecording(arg1:string):Promise<void>;
+
 export function DeleteScreenshot(arg1:string):Promise<void>;
 
 export function GetAppVersion():Promise<string>;
