@@ -87,7 +87,9 @@ export function MediaCard({
                 onToggleFavorite();
               }}
               className={`text-xs ${
-                isFavorite ? "text-yellow-400" : "text-white/30 hover:text-yellow-400"
+                isFavorite
+                  ? "text-yellow-400"
+                  : "text-white/30 hover:text-yellow-400"
               }`}
               title={isFavorite ? "Remove from favorites" : "Add to favorites"}
             >

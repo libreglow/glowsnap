@@ -7,9 +7,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const ffmpegBinary = "ffmpeg"
+
+var (
+	inFlightMu sync.Mutex
+	inFlight   = map[string]bool{}
+)
 
 func ThumbnailFileName(videoName string) string {
 	base := videoName
@@ -19,28 +25,67 @@ func ThumbnailFileName(videoName string) string {
 	return base + ".jpg"
 }
 
-func EnsureThumbnail(videoPath string) (string, error) {
+func ThumbnailExists(videoPath string) (string, bool) {
 	dir := filepath.Dir(videoPath)
 	name := ThumbnailFileName(filepath.Base(videoPath))
 	thumbPath := filepath.Join(dir, name)
 	if _, err := os.Stat(thumbPath); err == nil {
-		return name, nil
+		return name, true
 	}
-	if _, err := exec.LookPath(ffmpegBinary); err != nil {
-		return "", nil
+	return name, false
+}
+
+func GenerateThumbnailAsync(videoPath string, onDone func(name string, err error)) {
+	dir := filepath.Dir(videoPath)
+	name := ThumbnailFileName(filepath.Base(videoPath))
+	thumbPath := filepath.Join(dir, name)
+
+	if _, err := os.Stat(thumbPath); err == nil {
+		if onDone != nil {
+			onDone(name, nil)
+		}
+		return
 	}
 
-	if err := runThumbnail(videoPath, thumbPath, 1); err != nil {
-		os.Remove(thumbPath)
-		if retryErr := runThumbnail(videoPath, thumbPath, 0); retryErr != nil {
-			os.Remove(thumbPath)
-			return "", retryErr
+	if _, err := exec.LookPath(ffmpegBinary); err != nil {
+		if onDone != nil {
+			onDone("", fmt.Errorf("ffmpeg not found"))
 		}
+		return
 	}
-	if _, err := os.Stat(thumbPath); err != nil {
-		return "", fmt.Errorf("ffmpeg produced no thumbnail for %s", videoPath)
+
+	inFlightMu.Lock()
+	if inFlight[videoPath] {
+		inFlightMu.Unlock()
+		return
 	}
-	return name, nil
+	inFlight[videoPath] = true
+	inFlightMu.Unlock()
+
+	go func() {
+		defer func() {
+			inFlightMu.Lock()
+			delete(inFlight, videoPath)
+			inFlightMu.Unlock()
+		}()
+
+		err := runThumbnail(videoPath, thumbPath, 1)
+		if err != nil {
+			os.Remove(thumbPath)
+			err = runThumbnail(videoPath, thumbPath, 0)
+			if err != nil {
+				os.Remove(thumbPath)
+			}
+		}
+
+		if onDone != nil {
+			if err != nil {
+				onDone("", err)
+			} else {
+				onDone(name, nil)
+			}
+		}
+	}()
 }
 
 func runThumbnail(videoPath, thumbPath string, seekSeconds int) error {
@@ -59,7 +104,7 @@ func runThumbnail(videoPath, thumbPath string, seekSeconds int) error {
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("ffmpeg failed: %w\n%s", err, out.String())
 	}
 	return nil
 }

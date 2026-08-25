@@ -9,6 +9,7 @@ import {
   DeleteRecording,
 } from "../../wailsjs/go/main/App";
 import { settings } from "../../wailsjs/go/models";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MediaCard } from "@/components/ui/media-card";
 
@@ -93,6 +94,24 @@ export default function Record({
 
   useEffect(() => {
     loadRecordings();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = EventsOn(
+      "thumbnail-ready",
+      (data: { video: string; thumbnail: string }) => {
+        setRecordings((prev) =>
+          prev.map((r) =>
+            r.name === data.video
+              ? { ...r, thumbnailName: data.thumbnail, thumbnailReady: true }
+              : r,
+          ),
+        );
+      },
+    );
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const syncRecordings = async () => {
@@ -237,18 +256,18 @@ export default function Record({
             GlowSnap Studio
           </h1>
           <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10 ml-auto mr-auto">
-          <button
-            onClick={onSwitchToStudio}
-            className="px-3 py-1 text-xs rounded-md text-white/60 hover:text-white/90 transition-colors"
-          >
-            Studio
-          </button>
-          <button className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium">
-            Record
-          </button>
+            <button
+              onClick={onSwitchToStudio}
+              className="px-3 py-1 text-xs rounded-md text-white/60 hover:text-white/90 transition-colors"
+            >
+              Studio
+            </button>
+            <button className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium">
+              Record
+            </button>
+          </div>
         </div>
-        </div>
-        
+
         <div className="flex items-center gap-3 ml-auto">
           <div className="relative">
             <Search
@@ -351,7 +370,7 @@ export default function Record({
                   onToggleFavorite={() => toggleFavorite(rec.name)}
                   onDelete={() => handleDelete(rec.name)}
                   thumbnail={
-                    rec.thumbnailName ? (
+                    rec.thumbnailName && rec.thumbnailReady ? (
                       <img
                         onClick={() => handleSelectRecording(rec)}
                         src={`${baseUrl}/${encodeURIComponent(rec.thumbnailName)}`}

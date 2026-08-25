@@ -599,9 +599,10 @@ func (a *App) DeleteRecording(fileName string) error {
 }
 
 type RecordingInfo struct {
-	Name          string `json:"name"`
-	Path          string `json:"path"`
-	ThumbnailName string `json:"thumbnailName"`
+	Name           string `json:"name"`
+	Path           string `json:"path"`
+	ThumbnailName  string `json:"thumbnailName"`
+	ThumbnailReady bool   `json:"thumbnailReady"`
 }
 
 func (a *App) ListRecordings() ([]RecordingInfo, error) {
@@ -619,17 +620,32 @@ func (a *App) ListRecordings() ([]RecordingInfo, error) {
 		if entry.IsDir() {
 			continue
 		}
-		ext := filepath.Ext(entry.Name())
-		if ext != ".mp4" {
+		if filepath.Ext(entry.Name()) != ".mp4" {
 			continue
 		}
 		full := filepath.Join(dir, entry.Name())
-		thumbName, _ := screencast.EnsureThumbnail(full)
+
+		thumbName, exists := screencast.ThumbnailExists(full)
 		files = append(files, RecordingInfo{
-			Name:          entry.Name(),
-			Path:          full,
-			ThumbnailName: thumbName,
+			Name:           entry.Name(),
+			Path:           full,
+			ThumbnailName:  thumbName,
+			ThumbnailReady: exists,
 		})
+
+		if !exists {
+			videoName := entry.Name()
+			screencast.GenerateThumbnailAsync(full, func(name string, err error) {
+				if err != nil {
+					a.verboseLogf("thumbnail generation failed for %s: %v", videoName, err)
+					return
+				}
+				runtime.EventsEmit(a.ctx, "thumbnail-ready", map[string]string{
+					"video":     videoName,
+					"thumbnail": name,
+				})
+			})
+		}
 	}
 	if files == nil {
 		files = []RecordingInfo{}

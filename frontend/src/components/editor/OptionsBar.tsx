@@ -103,7 +103,12 @@ export default function OptionsBar({
   fillEnabled,
   setFillEnabled,
 }: OptionsBarProps) {
-  if (selectedTool === "select" || selectedTool === "crop" || selectedTool === "eraser") return null;
+  if (
+    selectedTool === "select" ||
+    selectedTool === "crop" ||
+    selectedTool === "eraser"
+  )
+    return null;
 
   return (
     <div className="flex wails-no-drag items-center gap-3 px-4 py-1.5 border-b border-white/10 bg-black/40 backdrop-blur-md text-white">
