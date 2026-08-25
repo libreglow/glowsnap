@@ -4,6 +4,7 @@ export namespace main {
 	    name: string;
 	    path: string;
 	    thumbnailName: string;
+	    thumbnailReady: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new RecordingInfo(source);
@@ -14,6 +15,7 @@ export namespace main {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.thumbnailName = source["thumbnailName"];
+	        this.thumbnailReady = source["thumbnailReady"];
 	    }
 	}
 	export class ScreenshotInfo {

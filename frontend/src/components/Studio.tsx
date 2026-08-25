@@ -361,16 +361,16 @@ export default function Studio({
             GlowSnap Studio
           </h1>
           <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10 ml-auto mr-auto">
-          <button className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium">
-            Studio
-          </button>
-          <button
-            onClick={onSwitchToRecord}
-            className="px-3 py-1 text-xs rounded-md text-white/60 hover:text-white/90 transition-colors"
-          >
-            Record
-          </button>
-        </div>
+            <button className="px-3 py-1 text-xs rounded-md bg-white/15 text-white font-medium">
+              Studio
+            </button>
+            <button
+              onClick={onSwitchToRecord}
+              className="px-3 py-1 text-xs rounded-md text-white/60 hover:text-white/90 transition-colors"
+            >
+              Record
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 ml-auto">
