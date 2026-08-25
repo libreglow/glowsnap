@@ -85,11 +85,11 @@ jobs:
           RELEASE_BODY=$(echo "$RELEASE" | jq -r '.body // ""')
 
           if [[ "$RELEASE_CHANNEL" == "stable" ]]; then
-            MENTION="<@1533442543008747571>"
+            MENTION="<@&1533442543008747571>"
             COLOR=5793266
             TYPE="Stable"
           else
-            MENTION="<@1533506422854389862>"
+            MENTION="<@&1533506422854389862>"
             COLOR=16776960
             TYPE="Pre-release"
           fi
