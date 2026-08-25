@@ -31,6 +31,31 @@ const CROP_HANDLE_SIZE = 16;
 const MIN_CROP_SIZE = 20;
 
 const ERASER_MIN_WIDTH = 16;
+const ERASER_POINT_SPACING = 2;
+
+function appendSmoothErasePoints(
+  points: number[],
+  nextPoint: { x: number; y: number },
+  spacing = ERASER_POINT_SPACING,
+): number[] {
+  if (points.length < 2)
+    return [nextPoint.x, nextPoint.y, nextPoint.x, nextPoint.y];
+
+  const last = { x: points[points.length - 2], y: points[points.length - 1] };
+  const dx = nextPoint.x - last.x;
+  const dy = nextPoint.y - last.y;
+  const distance = Math.hypot(dx, dy);
+
+  if (distance < 0.5) return points;
+
+  const steps = Math.max(1, Math.ceil(distance / spacing));
+  const result = points.slice();
+  for (let i = 1; i <= steps; i += 1) {
+    const t = i / steps;
+    result.push(last.x + dx * t, last.y + dy * t);
+  }
+  return result;
+}
 
 type CropHandle = "tl" | "tr" | "bl" | "br";
 
@@ -301,8 +326,23 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       points: number[];
       strokeWidth: number;
     } | null>(null);
+    const baseEraseStrokesRef = useRef<
+      Array<{ points: number[]; strokeWidth: number }>
+    >([]);
+    const eraseIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+      null,
+    );
     const shapeGroupRefs = useRef<Map<string, Konva.Group>>(new Map());
     const layerRef = useRef<Konva.Layer>(null);
+
+    useEffect(() => {
+      return () => {
+        if (eraseIntervalRef.current !== null) {
+          clearInterval(eraseIntervalRef.current);
+          eraseIntervalRef.current = null;
+        }
+      };
+    }, []);
 
     useImperativeHandle(ref, () => stageRef.current as Konva.Stage);
     const groupOffsetX = imageTransform.x;
@@ -401,7 +441,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       const node = shapeGroupRefs.current.get(id);
       if (!node) return;
       requestAnimationFrame(() => {
-        if (!node.getStage()) return; 
+        if (!node.getStage()) return;
         node.clearCache();
         node.cache();
         node.getLayer()?.batchDraw();
@@ -727,11 +767,34 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
             ERASER_MIN_WIDTH,
             eraserSize ?? strokeWidth * 4,
           );
-          const newStroke = { points: [pos.x, pos.y], strokeWidth: brushWidth };
+          const newStroke = {
+            points: [pos.x, pos.y, pos.x + 0.01, pos.y + 0.01],
+            strokeWidth: brushWidth,
+          };
           currentEraseStroke.current = newStroke;
 
-          const strokes = [...(shape.eraseStrokes || []), newStroke];
+          baseEraseStrokesRef.current = [...(shape.eraseStrokes || [])];
+          const strokes = [...baseEraseStrokesRef.current, newStroke];
           updateShape(id, { eraseStrokes: strokes }, false);
+
+          requestAnimationFrame(() => {
+            layerRef.current?.batchDraw();
+          });
+
+          if (eraseIntervalRef.current !== null) {
+            clearInterval(eraseIntervalRef.current);
+          }
+          eraseIntervalRef.current = setInterval(() => {
+            const activeId = erasingShapeId.current;
+            const activeStroke = currentEraseStroke.current;
+            if (!isErasing.current || !activeId || !activeStroke) return;
+
+            const activeStrokes = [
+              ...baseEraseStrokesRef.current,
+              { ...activeStroke },
+            ];
+            updateShape(activeId, { eraseStrokes: activeStrokes }, false);
+          }, 50);
           return;
         }
 
@@ -809,15 +872,22 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         const point = getRelativePointer();
         if (!point) return;
 
-        if (isErasing.current && erasingShapeId.current && currentEraseStroke.current) {
-          currentEraseStroke.current.points.push(point.x, point.y);
+        if (
+          isErasing.current &&
+          erasingShapeId.current &&
+          currentEraseStroke.current
+        ) {
+          const stroke = currentEraseStroke.current;
+          const nextPoints = appendSmoothErasePoints(stroke.points, point);
+          if (nextPoints === stroke.points) return;
+
+          stroke.points = nextPoints;
           const id = erasingShapeId.current;
-          const shape = shapes.find((s) => s.id === id);
-          if (shape) {
-            const strokes = [...(shape.eraseStrokes || [])];
-            strokes[strokes.length - 1] = { ...currentEraseStroke.current };
-            updateShape(id, { eraseStrokes: strokes }, false);
-          }
+          const strokes = [
+            ...baseEraseStrokesRef.current,
+            { ...stroke, points: nextPoints },
+          ];
+          updateShape(id, { eraseStrokes: strokes }, false);
           return;
         }
 
@@ -910,12 +980,17 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       }
       if (isErasing.current) {
         isErasing.current = false;
+        if (eraseIntervalRef.current !== null) {
+          clearInterval(eraseIntervalRef.current);
+          eraseIntervalRef.current = null;
+        }
         if (erasingShapeId.current) {
           commitShapes();
           recacheShapeGroup(erasingShapeId.current);
         }
         erasingShapeId.current = null;
         currentEraseStroke.current = null;
+        baseEraseStrokesRef.current = [];
       }
       if (isDrawing.current && drawingRef.current) {
         const shape = drawingRef.current;
@@ -947,7 +1022,13 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       }
       cropStartPos.current = null;
       activeCropHandle.current = null;
-    }, [commitShapes, setSelectedId, onChangeTool, deleteShape, recacheShapeGroup]);
+    }, [
+      commitShapes,
+      setSelectedId,
+      onChangeTool,
+      deleteShape,
+      recacheShapeGroup,
+    ]);
 
     const handleStageClick = useCallback(
       (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -1212,7 +1293,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
                 strokeWidth={stroke.strokeWidth}
                 lineCap="round"
                 lineJoin="round"
-                tension={0}
+                tension={0.4}
                 globalCompositeOperation="destination-out"
                 listening={false}
                 perfectDrawEnabled={false}
