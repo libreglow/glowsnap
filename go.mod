@@ -1,11 +1,11 @@
 module glowsnap
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/wailsapp/wails/v2 v2.13.0
-	golang.org/x/sys v0.44.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
