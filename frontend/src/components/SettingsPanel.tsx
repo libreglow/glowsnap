@@ -7,11 +7,13 @@ import {
   ResetSettings,
   GetAppVersion,
   GetResolutionPresets,
+  GetCustomResolutionLimits,
   SelectDirectory,
 } from "../../wailsjs/go/main/App";
 import { settings } from "../../wailsjs/go/models";
 import type {
   AppSettings,
+  ResolutionLimits,
   ResolutionPreset,
   SettingsPanelProps,
 } from "@/types/types";
@@ -59,6 +61,9 @@ export default function SettingsPanel({ onBack }: SettingsPanelProps) {
   const [config, setConfig] = useState<AppSettings | null>(null);
   const [version, setVersion] = useState("");
   const [resolutions, setResolutions] = useState<ResolutionPreset[]>([]);
+  const [customLimits, setCustomLimits] = useState<ResolutionLimits | null>(
+    null,
+  );
   const [active, setActive] = useState<Category>("general");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -68,15 +73,17 @@ export default function SettingsPanel({ onBack }: SettingsPanelProps) {
     let activeFlag = true;
     (async () => {
       try {
-        const [cfg, ver, res] = await Promise.all([
+        const [cfg, ver, res, limits] = await Promise.all([
           GetSettings(),
           GetAppVersion(),
           GetResolutionPresets(),
+          GetCustomResolutionLimits(),
         ]);
         if (!activeFlag) return;
         setConfig(cfg);
         setVersion(ver);
         setResolutions(res);
+        setCustomLimits(limits);
       } catch {
         if (activeFlag) setError("Failed to load settings.");
       } finally {
@@ -154,6 +161,7 @@ export default function SettingsPanel({ onBack }: SettingsPanelProps) {
             updateGroup={updateGroup}
             onPickDir={(title) => pickDir("recording", title)}
             resolutions={resolutions}
+            customLimits={customLimits}
           />
         );
       case "microphone":

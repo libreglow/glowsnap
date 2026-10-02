@@ -26,6 +26,10 @@ export function GetAppVersion() {
   return window['go']['main']['App']['GetAppVersion']();
 }
 
+export function GetCustomResolutionLimits() {
+  return window['go']['main']['App']['GetCustomResolutionLimits']();
+}
+
 export function GetHomeDir() {
   return window['go']['main']['App']['GetHomeDir']();
 }

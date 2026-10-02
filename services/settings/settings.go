@@ -35,6 +35,8 @@ type Recording struct {
 	SystemEnabledByDefault bool   `json:"systemEnabledByDefault"`
 	ShowMouseByDefault     bool   `json:"showMouseByDefault"`
 	Resolution             string `json:"resolution"`
+	CustomWidth            int    `json:"customWidth"`
+	CustomHeight           int    `json:"customHeight"`
 	NotifyOnRecordingEnd   bool   `json:"notifyOnRecordingEnd"`
 }
 
@@ -113,6 +115,8 @@ func Defaults() Settings {
 			SystemEnabledByDefault: true,
 			ShowMouseByDefault:     true,
 			Resolution:             DefaultResolution,
+			CustomWidth:            DefaultCustomWidth,
+			CustomHeight:           DefaultCustomHeight,
 		},
 		Editor: Editor{
 			DefaultTool:        "select",
@@ -301,6 +305,12 @@ func mergeDefaults(def Settings, stored *Settings, data []byte) {
 	if !present("recording", "resolution") {
 		stored.Recording.Resolution = legacyOrDefaultResolution(groups, def.Recording.Resolution)
 	}
+	if !present("recording", "customWidth") {
+		stored.Recording.CustomWidth = def.Recording.CustomWidth
+	}
+	if !present("recording", "customHeight") {
+		stored.Recording.CustomHeight = def.Recording.CustomHeight
+	}
 	if !present("recording", "notifyOnRecordingEnd") {
 		stored.Recording.NotifyOnRecordingEnd = def.Recording.NotifyOnRecordingEnd
 	}
@@ -405,6 +415,7 @@ func normalize(s Settings) Settings {
 	if !IsValidResolution(s.Recording.Resolution) {
 		s.Recording.Resolution = DefaultResolution
 	}
+	s.Recording.CustomWidth, s.Recording.CustomHeight = NormalizeCustomResolution(s.Recording.CustomWidth, s.Recording.CustomHeight)
 	if s.Editor.DefaultFontSize < 4 {
 		s.Editor.DefaultFontSize = 4
 	}

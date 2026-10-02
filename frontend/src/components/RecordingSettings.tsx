@@ -14,6 +14,7 @@ import type {
   ResolutionPreset,
   RecordingSettingsProps,
 } from "@/types/types";
+import { CUSTOM_RESOLUTION } from "@/lib/resolution";
 
 interface ToggleRowProps {
   icon: React.ReactNode;
@@ -81,6 +82,8 @@ export default function RecordingSettings({
   const [videosDir, setVideosDir] = useState("");
   const [resolution, setResolution] = useState("");
   const [resolutions, setResolutions] = useState<ResolutionPreset[]>([]);
+  const [customWidth, setCustomWidth] = useState(0);
+  const [customHeight, setCustomHeight] = useState(0);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
@@ -104,6 +107,8 @@ export default function RecordingSettings({
         setVideosDir(dir);
         setResolutions(presets);
         setResolution(cfg.recording?.resolution ?? "");
+        setCustomWidth(cfg.recording?.customWidth ?? 0);
+        setCustomHeight(cfg.recording?.customHeight ?? 0);
         setMicOn(cfg.recording?.micEnabledByDefault ?? true);
         setSystemOn(cfg.recording?.systemEnabledByDefault ?? true);
         setShowMouse(cfg.recording?.showMouseByDefault ?? true);
@@ -128,9 +133,12 @@ export default function RecordingSettings({
   const selectedMicValid = selectedMic !== "";
   const canStart = !starting && (!micOn || !needsSelection || selectedMicValid);
   const resolutionPreset = resolutions.find((r) => r.value === resolution);
-  const resolutionLabel = resolutionPreset
-    ? `${resolutionPreset.value} (${resolutionPreset.width}×${resolutionPreset.height})`
-    : resolution;
+  const isCustomResolution = resolution === CUSTOM_RESOLUTION;
+  const resolutionLabel = isCustomResolution
+    ? `Custom (${customWidth}×${customHeight})`
+    : resolutionPreset
+      ? `${resolutionPreset.label} (${resolutionPreset.width}×${resolutionPreset.height})`
+      : resolution;
 
   const handleStart = async () => {
     if (!canStart) return;

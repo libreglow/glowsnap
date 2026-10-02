@@ -2,12 +2,12 @@ package screencast
 
 import (
 	"fmt"
+	"glowsnap/services/settings"
 	"os"
 	"os/exec"
 	"sync"
 	"syscall"
 	"time"
-	"glowsnap/services/settings"
 )
 
 type RecordingOptions struct {
@@ -17,6 +17,8 @@ type RecordingOptions struct {
 	CaptureSystem bool
 	SystemDevice  string
 	Resolution    string
+	CustomWidth   int
+	CustomHeight  int
 }
 
 type Recorder interface {
@@ -206,7 +208,7 @@ func buildPipelineArgs(videoNode uint32, opts RecordingOptions) ([]string, error
 		return nil, fmt.Errorf("output path is required")
 	}
 
-	profile := resolutionProfile(opts.Resolution)
+	profile := resolutionProfile(opts.Resolution, opts.CustomWidth, opts.CustomHeight)
 	audioBitrate := profile.AudioBitrate
 
 	args := []string{
@@ -286,36 +288,48 @@ type encodingProfile struct {
 	GopSize      int
 }
 
-func resolutionProfile(resolution string) encodingProfile {
-	width, height, ok := settings.ResolutionDimensions(resolution)
+func resolutionProfile(resolution string, customWidth, customHeight int) encodingProfile {
+	width, height, ok := settings.OutputDimensions(resolution, customWidth, customHeight)
 	if !ok {
 		width, height, _ = settings.ResolutionDimensions(settings.DefaultResolution)
 	}
+	return encodingProfileForSize(width, height)
+}
 
-	profile := encodingProfile{
-		Width:        width,
-		Height:       height,
-		VideoBitrate: 2000000,
-		AudioBitrate: 128000,
-		Complexity:   1,
-		QPMin:        24,
-		QPMax:        44,
-		GopSize:      60,
-	}
+func encodingProfileForSize(width, height int) encodingProfile {
+	profile := encodingProfile{Width: width, Height: height, GopSize: 60}
 
-	switch resolution {
-	case settings.Resolution1080p:
-		profile.VideoBitrate = 6000000
-		profile.AudioBitrate = 192000
-		profile.Complexity = 2
-		profile.QPMin = 16
-		profile.QPMax = 38
-	case settings.Resolution480p:
+	switch pixels := width * height; {
+	case pixels <= 854*480:
 		profile.VideoBitrate = 800000
 		profile.AudioBitrate = 96000
 		profile.Complexity = 0
 		profile.QPMin = 32
 		profile.QPMax = 48
+	case pixels <= 1280*720:
+		profile.VideoBitrate = 2000000
+		profile.AudioBitrate = 128000
+		profile.Complexity = 1
+		profile.QPMin = 24
+		profile.QPMax = 44
+	case pixels <= 1920*1080:
+		profile.VideoBitrate = 6000000
+		profile.AudioBitrate = 192000
+		profile.Complexity = 2
+		profile.QPMin = 16
+		profile.QPMax = 38
+	case pixels <= 2560*1440:
+		profile.VideoBitrate = 12000000
+		profile.AudioBitrate = 192000
+		profile.Complexity = 2
+		profile.QPMin = 16
+		profile.QPMax = 38
+	default:
+		profile.VideoBitrate = 24000000
+		profile.AudioBitrate = 192000
+		profile.Complexity = 2
+		profile.QPMin = 16
+		profile.QPMax = 38
 	}
 
 	return profile

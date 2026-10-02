@@ -155,7 +155,13 @@ func (s *ScreenCastService) StartRecording(captureMic, captureSystem, showMouse 
 		return "", err
 	}
 
-	opts := RecordingOptions{OutputPath: outPath, Resolution: settings.Load().Recording.Resolution}
+	cfg := settings.Load()
+	opts := RecordingOptions{
+		OutputPath:   outPath,
+		Resolution:   cfg.Recording.Resolution,
+		CustomWidth:  cfg.Recording.CustomWidth,
+		CustomHeight: cfg.Recording.CustomHeight,
+	}
 
 	if micDevice == "" {
 		micDevice = DefaultMicrophone()

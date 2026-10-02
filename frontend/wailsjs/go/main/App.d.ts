@@ -16,6 +16,8 @@ export function DeleteScreenshot(arg1:string):Promise<void>;
 
 export function GetAppVersion():Promise<string>;
 
+export function GetCustomResolutionLimits():Promise<settings.ResolutionLimits>;
+
 export function GetHomeDir():Promise<string>;
 
 export function GetRecordingsBaseURL():Promise<string>;
