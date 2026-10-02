@@ -155,7 +155,7 @@ func (s *ScreenCastService) StartRecording(captureMic, captureSystem, showMouse 
 		return "", err
 	}
 
-	opts := RecordingOptions{OutputPath: outPath, Quality: settings.Load().Recording.Quality}
+	opts := RecordingOptions{OutputPath: outPath, Resolution: settings.Load().Recording.Resolution}
 
 	if micDevice == "" {
 		micDevice = DefaultMicrophone()

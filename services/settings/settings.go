@@ -34,7 +34,7 @@ type Recording struct {
 	MicEnabledByDefault    bool   `json:"micEnabledByDefault"`
 	SystemEnabledByDefault bool   `json:"systemEnabledByDefault"`
 	ShowMouseByDefault     bool   `json:"showMouseByDefault"`
-	Quality                string `json:"quality"`
+	Resolution             string `json:"resolution"`
 	NotifyOnRecordingEnd   bool   `json:"notifyOnRecordingEnd"`
 }
 
@@ -112,7 +112,7 @@ func Defaults() Settings {
 			MicEnabledByDefault:    true,
 			SystemEnabledByDefault: true,
 			ShowMouseByDefault:     true,
-			Quality:                "medium",
+			Resolution:             DefaultResolution,
 		},
 		Editor: Editor{
 			DefaultTool:        "select",
@@ -298,8 +298,8 @@ func mergeDefaults(def Settings, stored *Settings, data []byte) {
 	if !present("recording", "showMouseByDefault") {
 		stored.Recording.ShowMouseByDefault = def.Recording.ShowMouseByDefault
 	}
-	if !present("recording", "quality") {
-		stored.Recording.Quality = def.Recording.Quality
+	if !present("recording", "resolution") {
+		stored.Recording.Resolution = legacyOrDefaultResolution(groups, def.Recording.Resolution)
 	}
 	if !present("recording", "notifyOnRecordingEnd") {
 		stored.Recording.NotifyOnRecordingEnd = def.Recording.NotifyOnRecordingEnd
@@ -355,6 +355,29 @@ func mergeDefaults(def Settings, stored *Settings, data []byte) {
 	}
 }
 
+func legacyOrDefaultResolution(groups map[string]json.RawMessage, fallback string) string {
+	g, ok := groups["recording"]
+	if !ok {
+		return fallback
+	}
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(g, &fields) != nil {
+		return fallback
+	}
+	raw, ok := fields["quality"]
+	if !ok {
+		return fallback
+	}
+	var quality string
+	if json.Unmarshal(raw, &quality) != nil {
+		return fallback
+	}
+	if resolution, ok := legacyQualityResolution(quality); ok {
+		return resolution
+	}
+	return fallback
+}
+
 func normalize(s Settings) Settings {
 	if s.CustomShortcuts == nil {
 		s.CustomShortcuts = map[string]string{}
@@ -379,8 +402,8 @@ func normalize(s Settings) Settings {
 	if s.Screenshot.DelaySeconds > 60 {
 		s.Screenshot.DelaySeconds = 60
 	}
-	if !validQuality(s.Recording.Quality) {
-		s.Recording.Quality = "medium"
+	if !IsValidResolution(s.Recording.Resolution) {
+		s.Recording.Resolution = DefaultResolution
 	}
 	if s.Editor.DefaultFontSize < 4 {
 		s.Editor.DefaultFontSize = 4
@@ -410,14 +433,6 @@ func normalize(s Settings) Settings {
 	s.Shortcuts.OpenEditor = strings.TrimSpace(s.Shortcuts.OpenEditor)
 	s.Shortcuts.Cancel = strings.TrimSpace(s.Shortcuts.Cancel)
 	return s
-}
-
-func validQuality(q string) bool {
-	switch q {
-	case "low", "medium", "high":
-		return true
-	}
-	return false
 }
 
 func normalizeDir(dir, fallback string) string {

@@ -20,6 +20,8 @@ export function GetHomeDir():Promise<string>;
 
 export function GetRecordingsBaseURL():Promise<string>;
 
+export function GetResolutionPresets():Promise<Array<settings.ResolutionPreset>>;
+
 export function GetSavedMicrophone():Promise<string>;
 
 export function GetScreenshotsBaseURL():Promise<string>;

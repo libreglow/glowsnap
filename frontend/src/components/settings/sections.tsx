@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import type { AppSettings, Tool } from "@/types/types";
+import type { AppSettings, ResolutionPreset, Tool } from "@/types/types";
 import {
   SectionHeader,
   SettingRow,
@@ -148,20 +148,17 @@ export function ScreenshotSection({
 
 interface RecordingSectionProps extends SectionProps {
   onPickDir: (title: string) => void;
+  resolutions: ResolutionPreset[];
 }
-
-const QUALITY_OPTIONS = [
-  { value: "low", label: "Low (smaller file)" },
-  { value: "medium", label: "Medium (balanced)" },
-  { value: "high", label: "High (best quality)" },
-];
 
 export function RecordingSection({
   config,
   updateGroup,
   onPickDir,
+  resolutions,
 }: RecordingSectionProps) {
   const rc = config.recording;
+  const selected = resolutions.find((r) => r.value === rc.resolution);
   return (
     <div className="flex flex-col gap-0.5">
       <SectionHeader
@@ -179,13 +176,17 @@ export function RecordingSection({
         />
       </SettingRow>
       <SettingRow
-        label="Quality"
-        description="Trade-off between file size and visual quality for new recordings."
+        label="Resolution"
+        description={
+          selected
+            ? `New recordings are scaled to ${selected.width}×${selected.height}.`
+            : "Output resolution for new recordings."
+        }
       >
         <Select
-          value={rc.quality}
-          options={QUALITY_OPTIONS}
-          onChange={(v) => updateGroup("recording", { quality: v })}
+          value={rc.resolution}
+          options={resolutions.map((r) => ({ value: r.value, label: r.value }))}
+          onChange={(v) => updateGroup("recording", { resolution: v })}
         />
       </SettingRow>
       <SettingRow

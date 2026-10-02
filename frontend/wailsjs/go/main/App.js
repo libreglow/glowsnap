@@ -34,6 +34,10 @@ export function GetRecordingsBaseURL() {
   return window['go']['main']['App']['GetRecordingsBaseURL']();
 }
 
+export function GetResolutionPresets() {
+  return window['go']['main']['App']['GetResolutionPresets']();
+}
+
 export function GetSavedMicrophone() {
   return window['go']['main']['App']['GetSavedMicrophone']();
 }

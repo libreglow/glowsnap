@@ -7,6 +7,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"glowsnap/services/settings"
 )
 
 type RecordingOptions struct {
@@ -15,7 +16,7 @@ type RecordingOptions struct {
 	MicDevice     string
 	CaptureSystem bool
 	SystemDevice  string
-	Quality       string
+	Resolution    string
 }
 
 type Recorder interface {
@@ -205,12 +206,15 @@ func buildPipelineArgs(videoNode uint32, opts RecordingOptions) ([]string, error
 		return nil, fmt.Errorf("output path is required")
 	}
 
-	profile := qualityProfile(opts.Quality)
+	profile := resolutionProfile(opts.Resolution)
 	audioBitrate := profile.AudioBitrate
 
 	args := []string{
 		"-e",
 		"pipewiresrc", fmt.Sprintf("path=%d", videoNode),
+		"!", "videoconvert",
+		"!", "videoscale", "add-borders=true",
+		"!", fmt.Sprintf("video/x-raw,width=%d,height=%d", profile.Width, profile.Height),
 		"!", "videoconvert",
 		"!", "openh264enc",
 		fmt.Sprintf("bitrate=%d", profile.VideoBitrate),
@@ -272,6 +276,8 @@ func buildPipelineArgs(videoNode uint32, opts RecordingOptions) ([]string, error
 }
 
 type encodingProfile struct {
+	Width        int
+	Height       int
 	VideoBitrate int
 	AudioBitrate int
 	Complexity   int
@@ -280,13 +286,37 @@ type encodingProfile struct {
 	GopSize      int
 }
 
-func qualityProfile(q string) encodingProfile {
-	switch q {
-	case "low":
-		return encodingProfile{VideoBitrate: 800000, AudioBitrate: 96000, Complexity: 0, QPMin: 32, QPMax: 48, GopSize: 60}
-	case "high":
-		return encodingProfile{VideoBitrate: 6000000, AudioBitrate: 192000, Complexity: 2, QPMin: 16, QPMax: 38, GopSize: 60}
-	default:
-		return encodingProfile{VideoBitrate: 2000000, AudioBitrate: 128000, Complexity: 1, QPMin: 24, QPMax: 44, GopSize: 60}
+func resolutionProfile(resolution string) encodingProfile {
+	width, height, ok := settings.ResolutionDimensions(resolution)
+	if !ok {
+		width, height, _ = settings.ResolutionDimensions(settings.DefaultResolution)
 	}
+
+	profile := encodingProfile{
+		Width:        width,
+		Height:       height,
+		VideoBitrate: 2000000,
+		AudioBitrate: 128000,
+		Complexity:   1,
+		QPMin:        24,
+		QPMax:        44,
+		GopSize:      60,
+	}
+
+	switch resolution {
+	case settings.Resolution1080p:
+		profile.VideoBitrate = 6000000
+		profile.AudioBitrate = 192000
+		profile.Complexity = 2
+		profile.QPMin = 16
+		profile.QPMax = 38
+	case settings.Resolution480p:
+		profile.VideoBitrate = 800000
+		profile.AudioBitrate = 96000
+		profile.Complexity = 0
+		profile.QPMin = 32
+		profile.QPMax = 48
+	}
+
+	return profile
 }
