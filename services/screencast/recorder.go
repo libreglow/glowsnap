@@ -2,6 +2,7 @@ package screencast
 
 import (
 	"fmt"
+	"glowsnap/services/settings"
 	"os"
 	"os/exec"
 	"sync"
@@ -15,7 +16,9 @@ type RecordingOptions struct {
 	MicDevice     string
 	CaptureSystem bool
 	SystemDevice  string
-	Quality       string
+	Resolution    string
+	CustomWidth   int
+	CustomHeight  int
 }
 
 type Recorder interface {
@@ -205,12 +208,15 @@ func buildPipelineArgs(videoNode uint32, opts RecordingOptions) ([]string, error
 		return nil, fmt.Errorf("output path is required")
 	}
 
-	profile := qualityProfile(opts.Quality)
+	profile := resolutionProfile(opts.Resolution, opts.CustomWidth, opts.CustomHeight)
 	audioBitrate := profile.AudioBitrate
 
 	args := []string{
 		"-e",
 		"pipewiresrc", fmt.Sprintf("path=%d", videoNode),
+		"!", "videoconvert",
+		"!", "videoscale", "add-borders=true",
+		"!", fmt.Sprintf("video/x-raw,width=%d,height=%d", profile.Width, profile.Height),
 		"!", "videoconvert",
 		"!", "openh264enc",
 		fmt.Sprintf("bitrate=%d", profile.VideoBitrate),
@@ -272,6 +278,8 @@ func buildPipelineArgs(videoNode uint32, opts RecordingOptions) ([]string, error
 }
 
 type encodingProfile struct {
+	Width        int
+	Height       int
 	VideoBitrate int
 	AudioBitrate int
 	Complexity   int
@@ -280,13 +288,49 @@ type encodingProfile struct {
 	GopSize      int
 }
 
-func qualityProfile(q string) encodingProfile {
-	switch q {
-	case "low":
-		return encodingProfile{VideoBitrate: 800000, AudioBitrate: 96000, Complexity: 0, QPMin: 32, QPMax: 48, GopSize: 60}
-	case "high":
-		return encodingProfile{VideoBitrate: 6000000, AudioBitrate: 192000, Complexity: 2, QPMin: 16, QPMax: 38, GopSize: 60}
-	default:
-		return encodingProfile{VideoBitrate: 2000000, AudioBitrate: 128000, Complexity: 1, QPMin: 24, QPMax: 44, GopSize: 60}
+func resolutionProfile(resolution string, customWidth, customHeight int) encodingProfile {
+	width, height, ok := settings.OutputDimensions(resolution, customWidth, customHeight)
+	if !ok {
+		width, height, _ = settings.ResolutionDimensions(settings.DefaultResolution)
 	}
+	return encodingProfileForSize(width, height)
+}
+
+func encodingProfileForSize(width, height int) encodingProfile {
+	profile := encodingProfile{Width: width, Height: height, GopSize: 60}
+
+	switch pixels := width * height; {
+	case pixels <= 854*480:
+		profile.VideoBitrate = 800000
+		profile.AudioBitrate = 96000
+		profile.Complexity = 0
+		profile.QPMin = 32
+		profile.QPMax = 48
+	case pixels <= 1280*720:
+		profile.VideoBitrate = 2000000
+		profile.AudioBitrate = 128000
+		profile.Complexity = 1
+		profile.QPMin = 24
+		profile.QPMax = 44
+	case pixels <= 1920*1080:
+		profile.VideoBitrate = 6000000
+		profile.AudioBitrate = 192000
+		profile.Complexity = 2
+		profile.QPMin = 16
+		profile.QPMax = 38
+	case pixels <= 2560*1440:
+		profile.VideoBitrate = 12000000
+		profile.AudioBitrate = 192000
+		profile.Complexity = 2
+		profile.QPMin = 16
+		profile.QPMax = 38
+	default:
+		profile.VideoBitrate = 24000000
+		profile.AudioBitrate = 192000
+		profile.Complexity = 2
+		profile.QPMin = 16
+		profile.QPMax = 38
+	}
+
+	return profile
 }

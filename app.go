@@ -404,6 +404,14 @@ func (a *App) GetSettings() settings.Settings {
 	return settings.Load()
 }
 
+func (a *App) GetResolutionPresets() []settings.ResolutionPreset {
+	return settings.SupportedResolutions()
+}
+
+func (a *App) GetCustomResolutionLimits() settings.ResolutionLimits {
+	return settings.CustomResolutionLimits()
+}
+
 func (a *App) UpdateSettings(s settings.Settings) settings.Settings {
 	if err := settings.Save(s); err != nil {
 		runtime.LogError(a.ctx, "Failed to save settings: "+err.Error())

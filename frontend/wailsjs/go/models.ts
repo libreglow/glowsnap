@@ -146,7 +146,9 @@ export namespace settings {
 	    micEnabledByDefault: boolean;
 	    systemEnabledByDefault: boolean;
 	    showMouseByDefault: boolean;
-	    quality: string;
+	    resolution: string;
+	    customWidth: number;
+	    customHeight: number;
 	    notifyOnRecordingEnd: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -160,8 +162,46 @@ export namespace settings {
 	        this.micEnabledByDefault = source["micEnabledByDefault"];
 	        this.systemEnabledByDefault = source["systemEnabledByDefault"];
 	        this.showMouseByDefault = source["showMouseByDefault"];
-	        this.quality = source["quality"];
+	        this.resolution = source["resolution"];
+	        this.customWidth = source["customWidth"];
+	        this.customHeight = source["customHeight"];
 	        this.notifyOnRecordingEnd = source["notifyOnRecordingEnd"];
+	    }
+	}
+	export class ResolutionLimits {
+	    minWidth: number;
+	    minHeight: number;
+	    maxWidth: number;
+	    maxHeight: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResolutionLimits(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.minWidth = source["minWidth"];
+	        this.minHeight = source["minHeight"];
+	        this.maxWidth = source["maxWidth"];
+	        this.maxHeight = source["maxHeight"];
+	    }
+	}
+	export class ResolutionPreset {
+	    value: string;
+	    label: string;
+	    width: number;
+	    height: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResolutionPreset(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.value = source["value"];
+	        this.label = source["label"];
+	        this.width = source["width"];
+	        this.height = source["height"];
 	    }
 	}
 	export class Screenshot {

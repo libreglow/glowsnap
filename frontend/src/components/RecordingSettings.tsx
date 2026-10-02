@@ -7,8 +7,14 @@ import {
   GetVideosDir,
   GetSavedMicrophone,
   GetSettings,
+  GetResolutionPresets,
 } from "../../wailsjs/go/main/App";
-import type { AudioDevice, RecordingSettingsProps } from "@/types/types";
+import type {
+  AudioDevice,
+  ResolutionPreset,
+  RecordingSettingsProps,
+} from "@/types/types";
+import { CUSTOM_RESOLUTION } from "@/lib/resolution";
 
 interface ToggleRowProps {
   icon: React.ReactNode;
@@ -74,6 +80,10 @@ export default function RecordingSettings({
   const [systemMessage, setSystemMessage] = useState("");
   const [selectedMic, setSelectedMic] = useState("");
   const [videosDir, setVideosDir] = useState("");
+  const [resolution, setResolution] = useState("");
+  const [resolutions, setResolutions] = useState<ResolutionPreset[]>([]);
+  const [customWidth, setCustomWidth] = useState(0);
+  const [customHeight, setCustomHeight] = useState(0);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
@@ -82,18 +92,23 @@ export default function RecordingSettings({
     let active = true;
     (async () => {
       try {
-        const [micList, sysInfo, dir, saved, cfg] = await Promise.all([
+        const [micList, sysInfo, dir, saved, cfg, presets] = await Promise.all([
           ListMicrophones(),
           GetSystemAudioSupported(),
           GetVideosDir(),
           GetSavedMicrophone(),
           GetSettings(),
+          GetResolutionPresets(),
         ]);
         if (!active) return;
         setMics(micList);
         setSystemSupported(sysInfo.supported);
         setSystemMessage(sysInfo.message);
         setVideosDir(dir);
+        setResolutions(presets);
+        setResolution(cfg.recording?.resolution ?? "");
+        setCustomWidth(cfg.recording?.customWidth ?? 0);
+        setCustomHeight(cfg.recording?.customHeight ?? 0);
         setMicOn(cfg.recording?.micEnabledByDefault ?? true);
         setSystemOn(cfg.recording?.systemEnabledByDefault ?? true);
         setShowMouse(cfg.recording?.showMouseByDefault ?? true);
@@ -117,6 +132,13 @@ export default function RecordingSettings({
   const needsSelection = micOn && mics.length > 1;
   const selectedMicValid = selectedMic !== "";
   const canStart = !starting && (!micOn || !needsSelection || selectedMicValid);
+  const resolutionPreset = resolutions.find((r) => r.value === resolution);
+  const isCustomResolution = resolution === CUSTOM_RESOLUTION;
+  const resolutionLabel = isCustomResolution
+    ? `Custom (${customWidth}×${customHeight})`
+    : resolutionPreset
+      ? `${resolutionPreset.label} (${resolutionPreset.width}×${resolutionPreset.height})`
+      : resolution;
 
   const handleStart = async () => {
     if (!canStart) return;
@@ -223,6 +245,7 @@ export default function RecordingSettings({
           <div className="flex flex-col gap-0.5 py-1 border-t border-white/10">
             <InfoRow label="Save Location" value={videosDir} />
             <InfoRow label="Output Format" value="MP4" />
+            <InfoRow label="Resolution" value={resolutionLabel} />
           </div>
 
           {error && (

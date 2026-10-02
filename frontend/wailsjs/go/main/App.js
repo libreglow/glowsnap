@@ -26,12 +26,20 @@ export function GetAppVersion() {
   return window['go']['main']['App']['GetAppVersion']();
 }
 
+export function GetCustomResolutionLimits() {
+  return window['go']['main']['App']['GetCustomResolutionLimits']();
+}
+
 export function GetHomeDir() {
   return window['go']['main']['App']['GetHomeDir']();
 }
 
 export function GetRecordingsBaseURL() {
   return window['go']['main']['App']['GetRecordingsBaseURL']();
+}
+
+export function GetResolutionPresets() {
+  return window['go']['main']['App']['GetResolutionPresets']();
 }
 
 export function GetSavedMicrophone() {

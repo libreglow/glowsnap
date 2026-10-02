@@ -4,6 +4,8 @@ import type { main, screencast, settings } from "../../wailsjs/go/models";
 export type Screenshot = main.ScreenshotInfo;
 export type AudioDevice = screencast.AudioDevice;
 export type AppSettings = settings.Settings;
+export type ResolutionPreset = settings.ResolutionPreset;
+export type ResolutionLimits = settings.ResolutionLimits;
 
 export interface PaletteProps {
   onTakeScreenshot: () => void;

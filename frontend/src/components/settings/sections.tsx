@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import type { AppSettings, Tool } from "@/types/types";
+import type {
+  AppSettings,
+  ResolutionLimits,
+  ResolutionPreset,
+  Tool,
+} from "@/types/types";
+import {
+  CUSTOM_RESOLUTION,
+  parseDimension,
+  validateCustomDimension,
+} from "@/lib/resolution";
 import {
   SectionHeader,
   SettingRow,
@@ -148,20 +158,73 @@ export function ScreenshotSection({
 
 interface RecordingSectionProps extends SectionProps {
   onPickDir: (title: string) => void;
+  resolutions: ResolutionPreset[];
+  customLimits: ResolutionLimits | null;
 }
 
-const QUALITY_OPTIONS = [
-  { value: "low", label: "Low (smaller file)" },
-  { value: "medium", label: "Medium (balanced)" },
-  { value: "high", label: "High (best quality)" },
-];
+const DIMENSION_INPUT_CLASS =
+  "w-20 bg-white/10 hover:bg-white/15 text-xs text-white/90 rounded-[10px] px-2 py-1.5 border border-white/10 outline-none text-right";
 
 export function RecordingSection({
   config,
   updateGroup,
   onPickDir,
+  resolutions,
+  customLimits,
 }: RecordingSectionProps) {
   const rc = config.recording;
+  const isCustom = rc.resolution === CUSTOM_RESOLUTION;
+  const selected = resolutions.find((r) => r.value === rc.resolution);
+
+  const [customWidth, setCustomWidth] = useState(String(rc.customWidth ?? ""));
+  const [customHeight, setCustomHeight] = useState(
+    String(rc.customHeight ?? ""),
+  );
+
+  useEffect(() => {
+    setCustomWidth(String(rc.customWidth ?? ""));
+  }, [rc.customWidth]);
+
+  useEffect(() => {
+    setCustomHeight(String(rc.customHeight ?? ""));
+  }, [rc.customHeight]);
+
+  const customError = isCustom
+    ? validateCustomDimension(customWidth, customHeight, customLimits)
+    : "";
+
+  const resolutionOptions = [
+    ...resolutions.map((r) => ({ value: r.value, label: r.label })),
+    { value: CUSTOM_RESOLUTION, label: "Custom" },
+  ];
+
+  const persistCustomDimension = (width: string, height: string) => {
+    if (validateCustomDimension(width, height, customLimits) !== "") return;
+    const w = parseDimension(width);
+    const h = parseDimension(height);
+    if (w !== null && h !== null) {
+      updateGroup("recording", { customWidth: w, customHeight: h });
+    }
+  };
+
+  const handleCustomWidthChange = (value: string) => {
+    setCustomWidth(value);
+    persistCustomDimension(value, customHeight);
+  };
+
+  const handleCustomHeightChange = (value: string) => {
+    setCustomHeight(value);
+    persistCustomDimension(customWidth, value);
+  };
+
+  const resolutionDescription = isCustom
+    ? customError
+      ? "Set a custom output size below."
+      : `New recordings are scaled to ${customWidth}×${customHeight}.`
+    : selected
+      ? `New recordings are scaled to ${selected.width}×${selected.height}.`
+      : "Output resolution for new recordings.";
+
   return (
     <div className="flex flex-col gap-0.5">
       <SectionHeader
@@ -178,16 +241,50 @@ export function RecordingSection({
           onPick={() => onPickDir("Choose Recording Save Location")}
         />
       </SettingRow>
-      <SettingRow
-        label="Quality"
-        description="Trade-off between file size and visual quality for new recordings."
-      >
+      <SettingRow label="Resolution" description={resolutionDescription}>
         <Select
-          value={rc.quality}
-          options={QUALITY_OPTIONS}
-          onChange={(v) => updateGroup("recording", { quality: v })}
+          value={rc.resolution}
+          options={resolutionOptions}
+          onChange={(v) => updateGroup("recording", { resolution: v })}
         />
       </SettingRow>
+      {isCustom && (
+        <SettingRow
+          label="Custom size"
+          description={
+            customLimits
+              ? `Width × height in pixels (even, ${customLimits.minWidth}×${customLimits.minHeight}–${customLimits.maxWidth}×${customLimits.maxHeight}).`
+              : "Width × height in pixels (even numbers)."
+          }
+        >
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              inputMode="numeric"
+              aria-label="Custom width"
+              value={customWidth}
+              min={customLimits?.minWidth}
+              max={customLimits?.maxWidth}
+              onChange={(e) => handleCustomWidthChange(e.target.value)}
+              className={DIMENSION_INPUT_CLASS}
+            />
+            <span className="text-white/40 text-xs">×</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              aria-label="Custom height"
+              value={customHeight}
+              min={customLimits?.minHeight}
+              max={customLimits?.maxHeight}
+              onChange={(e) => handleCustomHeightChange(e.target.value)}
+              className={DIMENSION_INPUT_CLASS}
+            />
+          </div>
+        </SettingRow>
+      )}
+      {isCustom && customError && (
+        <div className="px-2 pb-1 text-[11px] text-red-300">{customError}</div>
+      )}
       <SettingRow
         label="System audio on by default"
         description="Start new recordings with system audio enabled."
