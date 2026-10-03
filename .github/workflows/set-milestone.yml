@@ -22,10 +22,10 @@ jobs:
               state: 'open'
             });
 
-            const milestone = milestones.find(m => m.title === 'v1.1.2');
+            const milestone = milestones.find(m => m.title === 'v1.1.3');
 
             if (!milestone) {
-              core.setFailed('Milestone v1.1.2 not found');
+              core.setFailed('Milestone v1.1.3 not found');
               return;
             }
 
