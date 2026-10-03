@@ -12,6 +12,7 @@ const konva = vi.hoisted(() => ({
   transformerNodes: [] as unknown[],
   textTransformerNodes: [] as unknown[],
   stageContainer: null as HTMLDivElement | null,
+  renderCounts: new Map<string, number>(),
 }));
 
 const konvaHandlerRegistry = new WeakMap<
@@ -59,6 +60,12 @@ vi.mock("react-konva", async () => {
   const create = (name: string) =>
     React.forwardRef((props: Record<string, any>, ref: React.Ref<unknown>) => {
       const node = makeNode(name, props);
+      if (props.id) {
+        konva.renderCounts.set(
+          props.id as string,
+          (konva.renderCounts.get(props.id as string) ?? 0) + 1,
+        );
+      }
       if (name === "Stage") {
         node.getPointerPosition = () => konva.pointer;
         node.getRelativePointerPosition = () => konva.pointer;
@@ -215,7 +222,15 @@ function renderCanvas(overrides: Record<string, unknown> = {}) {
   const view = render(
     <Canvas ref={ref as never} {...(props as ComponentProps<typeof Canvas>)} />,
   );
-  return { ...props, ref, ...view };
+
+  const rerenderCanvas = (nextOverrides: Record<string, unknown>) => {
+    Object.assign(props, nextOverrides);
+    view.rerender(
+      <Canvas ref={ref as never} {...(props as ComponentProps<typeof Canvas>)} />,
+    );
+  };
+
+  return { ...props, ref, rerenderCanvas, ...view };
 }
 
 const node = (name: string) => screen.getByTestId(`konva-${name}`);
@@ -290,6 +305,7 @@ describe("Canvas", () => {
     konva.pointer = { x: 0, y: 0 };
     konva.intersectionId = null;
     konva.stageContainer = document.createElement("div");
+    konva.renderCounts.clear();
   });
 
   it("renders a single stage and layer", () => {
@@ -767,6 +783,19 @@ describe("Canvas", () => {
   it("exposes the stage through its ref", () => {
     const { ref } = renderCanvas();
     expect(ref.current).toBeTruthy();
+  });
+
+  it("does not re-render untouched shapes when one shape changes", () => {
+    const first = shapeEntry({ id: "s1", type: "rect", x: 0, y: 0, width: 10, height: 10 });
+    const second = shapeEntry({ id: "s2", type: "rect", x: 20, y: 0, width: 10, height: 10 });
+    const { rerenderCanvas } = renderCanvas({ shapes: [first, second] });
+    const before = konva.renderCounts.get("s2") ?? 0;
+    const firstBefore = konva.renderCounts.get("s1") ?? 0;
+
+    rerenderCanvas({ shapes: [{ ...first, x: 5 }, second] });
+
+    expect(konva.renderCounts.get("s2") ?? 0).toBe(before);
+    expect(konva.renderCounts.get("s1") ?? 0).toBeGreaterThan(firstBefore);
   });
 
   it("scales the stage with the zoom factor", () => {
