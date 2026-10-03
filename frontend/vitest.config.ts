@@ -14,6 +14,7 @@ export default defineConfig({
       // Absolute aliases keep module identity stable: test files live outside
       // frontend/, so bare specifiers like "react-konva" would otherwise resolve
       // differently (and fail) there, which silently breaks vi.mock().
+      "konva": path.resolve(import.meta.dirname, "node_modules/konva"),
       "react-konva": path.resolve(import.meta.dirname, "node_modules/react-konva"),
       "react": path.resolve(import.meta.dirname, "node_modules/react"),
       "react/jsx-dev-runtime": path.resolve(import.meta.dirname, "node_modules/react/jsx-dev-runtime.js"),

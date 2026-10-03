@@ -176,6 +176,24 @@ vi.mock("react-konva", async () => {
   };
 });
 
+vi.mock("konva", () => {
+  class Text {
+    attrs: Record<string, unknown>;
+    constructor(attrs: Record<string, unknown>) {
+      this.attrs = attrs;
+    }
+    width() {
+      return String(this.attrs.text ?? "").length * 8;
+    }
+    height() {
+      const fontSize = Number(this.attrs.fontSize ?? 24);
+      return fontSize * Number(this.attrs.lineHeight ?? 1);
+    }
+    destroy() {}
+  }
+  return { default: { Text } };
+});
+
 const STAGE_SIZE = { width: 400, height: 300 };
 
 function makeProps(overrides: Record<string, unknown> = {}) {
@@ -497,6 +515,22 @@ describe("Canvas", () => {
     const { setSelectedId } = renderCanvas();
     fireEvent.click(node("Stage"));
     expect(setSelectedId).toHaveBeenCalledWith(null);
+  });
+
+  it("creates a text shape when the text tool is used", () => {
+    const { addShape, onChangeTool, onTextDoubleClick } = renderCanvas({
+      selectedTool: "text",
+    });
+    pointer(40, 50);
+    fireEvent.click(node("Stage"));
+    expect(addShape).toHaveBeenCalledTimes(1);
+    const shape = addShape.mock.calls[0][0] as ShapeConfig;
+    expect(shape.type).toBe("text");
+    expect(shape.text).toBe("Text");
+    expect(shape.x).toBe(40);
+    expect(shape.y).toBe(50);
+    expect(onChangeTool).toHaveBeenCalledWith("select");
+    expect(onTextDoubleClick).toHaveBeenCalledWith(shape);
   });
 
   it("shows the eraser cursor for the eraser tool", () => {

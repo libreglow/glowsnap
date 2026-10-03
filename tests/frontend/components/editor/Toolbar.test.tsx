@@ -22,6 +22,14 @@ describe("Toolbar", () => {
     expect(screen.getAllByRole("button")).toHaveLength(TOOLS.length);
   });
 
+  it("renders no number tool button", () => {
+    render(<Toolbar selectedTool="select" onToolChange={() => {}} />);
+    const titles = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("title") ?? "");
+    expect(titles.some((t) => t.startsWith("Number"))).toBe(false);
+  });
+
   it("labels every tool with its default shortcut", () => {
     render(<Toolbar selectedTool="select" onToolChange={() => {}} />);
     for (const [tool, label] of TOOLS) {

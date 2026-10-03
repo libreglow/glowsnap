@@ -127,6 +127,10 @@ describe("getToolForShortcut", () => {
     expect(getToolForShortcut("")).toBeUndefined();
   });
 
+  it("does not bind the n key to a removed number tool", () => {
+    expect(getToolForShortcut("n")).toBeUndefined();
+  });
+
   it("covers every declared tool key", () => {
     for (const [key, tool] of Object.entries(TOOL_SHORTCUT_KEYS)) {
       expect(getToolForShortcut(key)).toBe(tool);
