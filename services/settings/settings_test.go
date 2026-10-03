@@ -1,0 +1,1 @@
+../../tests/backend/services/settings/settings_test.go

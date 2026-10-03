@@ -145,16 +145,25 @@ clear reason.
 
 ## Testing
 
-- The repository currently has **no actual test files** (Go or frontend). Do
-  not claim a test suite exists.
-- Backend validation is `go test -tags webkit2_41 ./...` and `go vet -tags
-  webkit2_41 ./...` (as CI runs). In the current state these act primarily as
-  compilation/package validation.
-- `npm run build` is the primary frontend validation (runs `tsc`, then Vite
-  build).
-- `vitest.config.ts` exists, but there is **no** `test` script and the
-  referenced `src/test-setup.ts` is missing, so vitest is not a runnable
-  workflow. Do not present it as such.
+- **All tests live in the top-level `tests/` folder**, not next to the source:
+  - `tests/backend/` mirrors the package layout (`app_test.go`,
+    `services/<pkg>/*_test.go`). Go requires test files to sit in their package
+    directory, so each one is a **symlink** into place (`app_test.go`,
+    `services/*/*_test.go` → `tests/backend/...`). Edit the file under
+    `tests/backend/`, never the symlink.
+  - `tests/backend/` is its own Go module (`tests/go.mod`) so the root module's
+    `./...` pattern does not try to compile the test sources as packages.
+  - `tests/frontend/` holds the Vitest suites plus `test-setup.ts` and the
+    shared Wails mocks in `test-support/wails.ts`. `frontend/vitest.config.ts`
+    points `include`/`setupFiles` at that folder.
+- Frontend tests use Vitest + Testing Library (`npm test`, `npm run test:watch`,
+  `npm run test:coverage`) with jsdom. Import app code via `@/…` and test
+  helpers via `@tests/…`.
+- Konva cannot render in jsdom, so `Canvas.test.tsx` mocks `react-konva`. That
+  mock only applies because `frontend/vitest.config.ts` aliases `react-konva`
+  to an absolute path — without it the bare specifier fails to resolve from
+  `tests/frontend` and real Konva loads.
+- `npm run build` remains the frontend type-check plus production build.
 - Do not invent test, build, lint, or formatting commands.
 
 ## Build and Validation
@@ -162,8 +171,10 @@ clear reason.
 Use the smallest relevant validation for the change:
 
 ```bash
-# Frontend type-check + build (primary frontend validation)
+# Frontend type-check + build
 cd frontend && npm run build
+# Frontend tests
+cd frontend && npm test
 
 # Go formatting check (must output nothing)
 gofmt -l .

@@ -1,0 +1,1 @@
+../../tests/backend/services/screencast/thumbnail_test.go

@@ -78,6 +78,110 @@ Coming soon on Flathub
 
 ---
 
+## Testing
+
+All test files live in the top-level [`tests/`](./tests) folder, not next to the
+source they cover.
+
+```
+tests/
+├── backend/                # Go tests (mirrors the package layout)
+│   ├── app_test.go
+│   └── services/<pkg>/*_test.go
+└── frontend/               # Vitest + Testing Library suites
+    ├── test-setup.ts
+    ├── test-support/wails.ts
+    └── components/, lib/
+```
+
+### Prerequisites
+
+Building and testing requires WebKitGTK 4.1 + GTK3 development libraries. On
+Debian/Ubuntu/Fedora you can install them with:
+
+```bash
+./scripts/install-deps.sh --install
+```
+
+Frontend dependencies use **npm** (`frontend/package-lock.json` is the
+authoritative lockfile):
+
+```bash
+cd frontend && npm ci
+```
+
+### Backend (Go)
+
+Go requires test files to sit in the directory of the package they test, so each
+one is a **symlink** from its package directory into `tests/backend/`. Edit the
+file under `tests/backend/`, never the symlink. `tests/` is its own Go module
+(`tests/go.mod`) so those sources are excluded from the root module's `./...`
+pattern.
+
+```bash
+# Run every Go test
+go test -tags webkit2_41 ./...
+
+# Run one package, or one test
+go test -tags webkit2_41 ./services/settings/
+go test -tags webkit2_41 ./services/settings/ -run TestSupportedResolutions
+
+# Verbose output
+go test -v -tags webkit2_41 ./...
+```
+
+Static checks (CI runs both, so keep them clean):
+
+```bash
+gofmt -l .                              # must print nothing
+go vet -tags webkit2_41 ./...
+```
+
+> The `webkit2_41` build tag is required because Wails needs the WebKitGTK 4.1
+> API. Omitting it fails to compile.
+
+### Frontend (TypeScript)
+
+The Vitest config (`frontend/vitest.config.ts`) points at `tests/frontend`, so run
+the commands from the `frontend` directory:
+
+```bash
+cd frontend
+
+npm test                 # run the suite once
+npm run test:watch       # re-run on change
+npm run test:coverage    # coverage report
+```
+
+Run a single file or filter by name by passing the path or `-t` through Vitest:
+
+```bash
+npx vitest run ../tests/frontend/components/editor/Canvas.test.tsx
+npx vitest run -t "screencast"
+```
+
+Type-check and build (this is the other frontend CI check):
+
+```bash
+npm run build            # tsc, then vite build
+```
+
+Notes:
+
+- Import app code with `@/…` and test helpers with `@tests/…`.
+- Konva cannot render in jsdom, so `Canvas.test.tsx` mocks `react-konva`. That
+  mock works because `frontend/vitest.config.ts` aliases `react-konva` to an
+  absolute path — without the alias the bare specifier fails to resolve from
+  `tests/frontend` and the real Konva loads.
+
+### Running everything in Docker
+
+If you would rather not install the native toolchain locally, the
+[Dockerfile](./Dockerfile) builds and runs the whole suite in a container — see
+[Building with Docker](#building-with-docker) below.
+
+---
+
 ## Building with Docker
 
 GlowSnap ships a [multi-stage `Dockerfile`](./Dockerfile) that provides a fully
