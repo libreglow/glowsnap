@@ -295,14 +295,20 @@ export const APP_SHORTCUTS: AppShortcut[] = [
   },
 ];
 
-export const ALL_SHORTCUTS: ShortcutDef[] = [
+export type AnyShortcut =
+  | EditorShortcut
+  | ToolShortcut
+  | PaletteShortcut
+  | AppShortcut;
+
+export const ALL_SHORTCUTS: AnyShortcut[] = [
   ...EDITOR_SHORTCUTS,
   ...TOOL_SHORTCUTS,
   ...PALETTE_SHORTCUTS,
   ...APP_SHORTCUTS,
 ];
 
-export function findShortcut(id: string): ShortcutDef | undefined {
+export function findShortcut(id: string): AnyShortcut | undefined {
   return ALL_SHORTCUTS.find((s) => s.id === id);
 }
 

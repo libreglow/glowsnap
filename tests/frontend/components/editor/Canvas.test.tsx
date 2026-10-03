@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
+import type { ComponentProps } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Canvas from "@/components/editor/Canvas";
 import { shapeEntry } from "@tests/test-support/wails";
@@ -16,7 +17,12 @@ const konva = vi.hoisted(() => ({
 vi.mock("react-konva", async () => {
   const React = await import("react");
 
-  const makeNode = (name: string, props: Record<string, any>) => {
+  // Konva nodes expose a large, dynamic surface (getPointerPosition, container,
+  // batchDraw, ...) that is attached per node type below, so the test double is
+  // intentionally untyped rather than enumerating every member.
+  type KonvaNodeMock = Record<string, any>;
+
+  const makeNode = (name: string, props: Record<string, any>): KonvaNodeMock => {
     const node = {
       name,
       props,
@@ -178,7 +184,9 @@ function makeProps(overrides: Record<string, unknown> = {}) {
 function renderCanvas(overrides: Record<string, unknown> = {}) {
   const props = makeProps(overrides);
   const ref = React.createRef<unknown>();
-  const view = render(<Canvas ref={ref as never} {...(props as never)} />);
+  const view = render(
+    <Canvas ref={ref as never} {...(props as ComponentProps<typeof Canvas>)} />,
+  );
   return { ...props, ref, ...view };
 }
 

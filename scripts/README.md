@@ -20,6 +20,8 @@ the project root themselves. They never modify application source code.
 | `install.sh`        | Install binary + `.desktop` + hicolor icons into the desktop env.      |
 | `clean.sh`          | Remove generated build artifacts and temporary files.                  |
 | `install-deps.sh`   | Detect the OS and report/install required dependencies.                |
+| `test-frontend.sh`  | Validate the frontend: lint, typecheck, Vitest, production build.      |
+| `test-backend.sh`   | Validate the backend: `gofmt`, `go vet`, `go test`.                    |
 
 ---
 
@@ -124,6 +126,36 @@ Removes `build/bin`, `build/AppImage`, `frontend/dist`, the temporary
 `glowsnap.AppDir` / `squashfs-root` directories, and local `release/` output.
 Source files are never touched. The downloaded `appimagetool-x86_64.AppImage`
 is kept so it is not re-downloaded on the next build.
+
+### Run the test suite
+
+The complete validation for the project runs from the repository root:
+
+```bash
+./test.sh              # frontend + backend
+./test.sh frontend     # frontend only
+./test.sh backend      # backend only
+```
+
+`./test.sh` is a thin orchestrator; both halves also run standalone and are the
+exact scripts GitHub Actions calls (one job each, running in parallel):
+
+```bash
+./scripts/test-frontend.sh   # lint, tsc (app), tsc (tests), vitest run, vite build
+./scripts/test-backend.sh    # gofmt -l, go vet -tags webkit2_41 ./..., go test
+```
+
+All test sources live in `tests/` (`tests/frontend`, `tests/backend`); see the
+Testing section of the README for the layout and the standalone `npm`/`go`
+commands.
+
+Environment overrides:
+
+| Variable    | Effect                                              |
+| ----------- | --------------------------------------------------- |
+| `SKIP_BUILD` | `1` skips the frontend production build.            |
+| `SKIP_LINT`  | `1` skips the frontend lint step.                   |
+| `BUILD_TAGS` | Backend build tags (default `webkit2_41`).          |
 
 ### Install dependencies
 

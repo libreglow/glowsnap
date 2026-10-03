@@ -80,7 +80,7 @@ describe("OptionsBar", () => {
     vi.clearAllMocks();
   });
 
-  it.each([["select"], ["crop"], ["eraser"]] as Tool[])(
+  it.each([["select"], ["crop"], ["eraser"]] as [Tool][])(
     "renders nothing for the %s tool",
     (tool) => {
       const { container } = render(

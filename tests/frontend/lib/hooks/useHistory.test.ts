@@ -44,11 +44,11 @@ describe("useHistory", () => {
     act(() => result.current.saveHistory([rect("a")]));
     act(() => result.current.saveHistory([rect("a"), rect("b")]));
 
-    let restored: ShapeConfig[] | null = null;
+    const restored: { value: ShapeConfig[] | null } = { value: null };
     act(() => {
-      restored = result.current.undo();
+      restored.value = result.current.undo();
     });
-    expect(restored?.map((s) => s.id)).toEqual(["a"]);
+    expect(restored.value?.map((s) => s.id)).toEqual(["a"]);
     expect(result.current.historyIndex).toBe(0);
   });
 
@@ -60,11 +60,11 @@ describe("useHistory", () => {
       result.current.undo();
     });
 
-    let restored: ShapeConfig[] | null = null;
+    const restored: { value: ShapeConfig[] | null } = { value: null };
     act(() => {
-      restored = result.current.redo();
+      restored.value = result.current.redo();
     });
-    expect(restored?.map((s) => s.id)).toEqual(["a", "b"]);
+    expect(restored.value?.map((s) => s.id)).toEqual(["a", "b"]);
     expect(result.current.historyIndex).toBe(1);
   });
 
@@ -136,31 +136,31 @@ describe("useHistory", () => {
     act(() => result.current.saveHistory(shapes));
 
     shapes[0].x = 500;
-    let restored: ShapeConfig[] | null = null;
+    const restored: { value: ShapeConfig[] | null } = { value: null };
     act(() => {
       result.current.saveHistory(shapes);
     });
     act(() => {
-      restored = result.current.undo();
+      restored.value = result.current.undo();
     });
-    expect(restored?.[0].x).toBe(5);
+    expect(restored.value?.[0].x).toBe(5);
   });
 
   it("returns clones, so callers cannot mutate stored history", () => {
     const { result } = renderHook(() => useHistory());
     act(() => result.current.saveHistory([rect("a", 5)]));
 
-    let first: ShapeConfig[] | null = null;
+    const first: { value: ShapeConfig[] | null } = { value: null };
     act(() => {
-      first = result.current.undo();
+      first.value = result.current.undo();
     });
-    expect(first).toBeNull();
+    expect(first.value).toBeNull();
 
     act(() => result.current.saveHistory([rect("a", 7)]));
     act(() => {
-      first = result.current.undo();
+      first.value = result.current.undo();
     });
-    (first as ShapeConfig[])[0].x = 1234;
+    (first.value as ShapeConfig[])[0].x = 1234;
 
     act(() => {
       const again = result.current.redo();

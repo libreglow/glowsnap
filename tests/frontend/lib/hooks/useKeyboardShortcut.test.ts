@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import useKeyboardShortcut from "@/lib/hooks/useKeyboardShortcut";
 
 describe("useKeyboardShortcut", () => {
-  let callback: ReturnType<typeof vi.fn>;
+  let callback: ReturnType<typeof vi.fn<() => void>>;
 
   beforeEach(() => {
     callback = vi.fn();

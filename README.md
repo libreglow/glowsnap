@@ -80,10 +80,36 @@ Coming soon on Flathub
 
 ## Testing
 
-All test files live in the top-level [`tests/`](./tests) folder, not next to the
-source they cover.
+Run the complete validation with a single command:
 
+```bash
+./test.sh
 ```
+
+That is the same entry point CI uses, so what passes locally passes on a pull
+request. It orchestrates two scripts that also work standalone:
+
+```text
+./test.sh
+    ├── ./scripts/test-frontend.sh   # lint, typecheck (app + tests), vitest, build
+    └── ./scripts/test-backend.sh    # gofmt, go vet, go test
+```
+
+```bash
+./test.sh              # everything
+./test.sh frontend     # frontend only
+./test.sh backend      # backend only
+```
+
+Each stage prints a banner, output is shown as-is, and the first failure stops
+the run with a non-zero exit code.
+
+### Where tests live
+
+All test code — helpers, fixtures, mocks, setup files and configuration — lives
+in the top-level [`tests/`](./tests) folder, never next to the source it covers:
+
+```text
 tests/
 ├── backend/                # Go tests (mirrors the package layout)
 │   ├── app_test.go
@@ -93,6 +119,12 @@ tests/
     ├── test-support/wails.ts
     └── components/, lib/
 ```
+
+Go requires a `_test.go` file to sit in the directory of the package it covers,
+so each one is a **symlink** from its package directory into `tests/backend/`.
+Edit the file under `tests/backend/`, never the symlink. `tests/` is its own Go
+module (`tests/go.mod`) so those sources stay out of the root module's `./...`
+pattern.
 
 ### Prerequisites
 
@@ -110,75 +142,87 @@ authoritative lockfile):
 cd frontend && npm ci
 ```
 
+`./scripts/test-frontend.sh` runs `npm ci` automatically if `node_modules` is
+missing.
+
 ### Backend (Go)
 
-Go requires test files to sit in the directory of the package they test, so each
-one is a **symlink** from its package directory into `tests/backend/`. Edit the
-file under `tests/backend/`, never the symlink. `tests/` is its own Go module
-(`tests/go.mod`) so those sources are excluded from the root module's `./...`
-pattern.
-
 ```bash
-# Run every Go test
-go test -tags webkit2_41 ./...
+./scripts/test-backend.sh          # gofmt + go vet + go test
 
-# Run one package, or one test
-go test -tags webkit2_41 ./services/settings/
-go test -tags webkit2_41 ./services/settings/ -run TestSupportedResolutions
-
-# Verbose output
-go test -v -tags webkit2_41 ./...
-```
-
-Static checks (CI runs both, so keep them clean):
-
-```bash
-gofmt -l .                              # must print nothing
+# Or run the underlying commands directly:
+gofmt -l .                          # reports problems, never rewrites
 go vet -tags webkit2_41 ./...
+go test -count=1 -tags webkit2_41 ./...
+
+# One package, or one test
+go test -tags webkit2_41 ./services/settings -run TestSupportedResolutions
 ```
+
+`third_party/` is excluded from the formatting check — it is a vendored copy of
+the Wails module pulled in by the `replace` directive in `go.mod`, not project
+source.
 
 > The `webkit2_41` build tag is required because Wails needs the WebKitGTK 4.1
 > API. Omitting it fails to compile.
 
 ### Frontend (TypeScript)
 
-The Vitest config (`frontend/vitest.config.ts`) points at `tests/frontend`, so run
-the commands from the `frontend` directory:
+```bash
+./scripts/test-frontend.sh         # lint + typecheck + vitest + build
+```
+
+Or, from the `frontend` directory:
 
 ```bash
-cd frontend
-
-npm test                 # run the suite once
+npm run typecheck        # tsc --noEmit (app sources)
+npm run typecheck:test   # tsc -p tsconfig.test.json (test sources)
+npm test                 # vitest run
 npm run test:watch       # re-run on change
 npm run test:coverage    # coverage report
+npm run build            # tsc + vite build
 ```
+
+Test sources are type-checked by a separate project (`frontend/tsconfig.test.json`)
+because `tsconfig.json` intentionally only covers `frontend/src`.
 
 Run a single file or filter by name by passing the path or `-t` through Vitest:
 
 ```bash
+cd frontend
 npx vitest run ../tests/frontend/components/editor/Canvas.test.tsx
 npx vitest run -t "screencast"
 ```
 
-Type-check and build (this is the other frontend CI check):
-
-```bash
-npm run build            # tsc, then vite build
-```
-
 Notes:
 
+- There is no linter configured yet. `npm run lint` is a placeholder, and
+  `test-frontend.sh` skips the step with a notice until an ESLint config is added.
 - Import app code with `@/…` and test helpers with `@tests/…`.
 - Konva cannot render in jsdom, so `Canvas.test.tsx` mocks `react-konva`. That
   mock works because `frontend/vitest.config.ts` aliases `react-konva` to an
   absolute path — without the alias the bare specifier fails to resolve from
   `tests/frontend` and the real Konva loads.
 
+### Continuous integration
+
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on every pull
+request and every push to `main`. It has two independent jobs that execute in
+parallel and each call the very same script used locally:
+
+| Job       | Runs                        |
+| --------- | --------------------------- |
+| Frontend  | `./scripts/test-frontend.sh` |
+| Backend   | `./scripts/test-backend.sh`  |
+
+Because the scripts are the single source of truth for the validation commands,
+local and CI behaviour cannot drift apart.
+
 ### Running everything in Docker
 
 If you would rather not install the native toolchain locally, the
-[Dockerfile](./Dockerfile) builds and runs the whole suite in a container — see
-[Building with Docker](#building-with-docker) below.
+[Dockerfile](./Dockerfile) type-checks and tests both halves inside a container —
+see [Building with Docker](#building-with-docker) below.
 
 ---
 

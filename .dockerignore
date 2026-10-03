@@ -4,6 +4,8 @@
 # Frontend: node_modules and generated dist are produced inside the build
 frontend/node_modules
 frontend/dist
+# Test-only frontend dependencies are installed by the frontend stage
+tests/frontend/node_modules
 
 # Go build outputs
 build/bin

@@ -41,6 +41,14 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 # Copy the remaining frontend sources (including the committed Wails bindings
 # under frontend/wailsjs) and produce the embedded `dist/` bundle.
 COPY frontend/ ./
+
+# The Vitest config loads suites from tests/frontend, so the test sources have to
+# be present in this stage as well.
+COPY tests/frontend/ ../tests/frontend/
+
+# Type-check app + test sources, then run the suite and build the bundle.
+RUN npm run typecheck && npm run typecheck:test
+RUN npm test
 RUN npm run build
 
 # ---------------------------------------------------------------------------
@@ -79,13 +87,19 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 # directive expects it.
 COPY --from=frontend /app/dist ./frontend/dist
 
+# tests/backend/ holds the Go test sources. The *_test.go files inside the
+# package directories are symlinks into it, and COPY dereferences symlinks, so
+# this must be copied BEFORE the Go sources or the links would dangle.
+COPY tests/backend/ ./tests/backend/
+COPY scripts/ ./scripts/
+
 # Copy the Go sources (root packages + services) and the embedded icon.
 COPY *.go ./
 COPY services/ ./services/
 COPY build/appicon.png ./build/appicon.png
 
-# Run the project test suite exactly as CI does.
-RUN go test -tags webkit2_41 ./...
+# Run the same backend checks as CI and ./test.sh (gofmt, go vet, go test).
+RUN ./scripts/test-backend.sh
 
 # Compile the production binary with the pinned version injection.
 RUN go build -tags webkit2_41 -trimpath \

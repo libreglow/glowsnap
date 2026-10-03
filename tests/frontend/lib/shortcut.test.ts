@@ -98,9 +98,14 @@ describe("shortcut tables", () => {
 
 describe("findShortcut", () => {
   it("finds shortcuts by id", () => {
-    expect(findShortcut("editor-undo")?.action).toBe("undo");
-    expect(findShortcut("palette-record")?.action).toBe("record");
-    expect(findShortcut("tool-crop")?.tool).toBe("crop");
+    const undo = findShortcut("editor-undo");
+    expect(undo && "action" in undo ? undo.action : undefined).toBe("undo");
+
+    const record = findShortcut("palette-record");
+    expect(record && "action" in record ? record.action : undefined).toBe("record");
+
+    const crop = findShortcut("tool-crop");
+    expect(crop && "tool" in crop ? crop.tool : undefined).toBe("crop");
   });
 
   it("returns undefined for unknown ids", () => {

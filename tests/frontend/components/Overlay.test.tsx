@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Overlay from "@/components/Overlay";
+import type { OverlayRect } from "@/types/types";
 
 const IMAGE_URL = "http://127.0.0.1:34116/shot.png";
 
@@ -37,7 +38,7 @@ function drag(target: Element, from: { x: number; y: number }, to: { x: number; 
 }
 
 describe("Overlay", () => {
-  let onComplete: ReturnType<typeof vi.fn>;
+  let onComplete: ReturnType<typeof vi.fn<(rect: OverlayRect) => void>>;
   let originalWidth: number;
   let originalHeight: number;
 

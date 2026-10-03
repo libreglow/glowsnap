@@ -19,7 +19,7 @@ vi.mock("@wailsjs/runtime/runtime", async () => {
   return runtimeModuleMock();
 });
 
-type ProbeProps = Record<string, (...args: never[]) => void>;
+type ProbeProps = Record<string, (...args: unknown[]) => void>;
 
 vi.mock("@/components/Palette", () => ({
   default: (props: ProbeProps & { customShortcuts: Record<string, string> }) => (

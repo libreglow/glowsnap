@@ -37,7 +37,6 @@ jobs:
         working-directory: frontend
 
       - name: Build frontend
-
         run: npm run build
         working-directory: frontend
 
@@ -47,20 +46,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Check Go formatting
-        run: |
-          unformatted="$(gofmt -l .)"
-          if [ -n "$unformatted" ]; then
-            echo "The following files are not gofmt-formatted:"
-            echo "$unformatted"
-            exit 1
-          fi
-
-      - name: Go vet
-        run: go vet -tags webkit2_41 ./...
-
-      - name: Go test
-        run: go test -tags webkit2_41 ./...
+      - name: Run backend checks
+        run: ./scripts/test-backend.sh
 
   frontend:
     name: Frontend (TypeScript)
@@ -81,10 +68,5 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Type-check and build
-        run: npm run build
-        working-directory: frontend
-
-      - name: Frontend tests
-        run: npm test
-        working-directory: frontend
+      - name: Run frontend checks
+        run: ./scripts/test-frontend.sh

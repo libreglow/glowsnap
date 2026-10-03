@@ -23,7 +23,7 @@ Frontend:
 
 ```bash
 cd frontend
-bun install
+npm ci
 ```
 
 Backend:
@@ -51,6 +51,8 @@ glowsnap/
 ├── services/        # Go backend services
 │   ├── screenshot/  # Screenshot functionality
 │   └── screencast/  # Screen recording functionality
+├── tests/           # All test code (frontend + backend)
+├── test.sh          # Run the complete validation suite
 ├── app.go           # Wails application bindings
 └── main.go          # Application entry point
 ```
@@ -103,10 +105,10 @@ git checkout -b feature/my-feature
 
 2. Make your changes.
 
-3. Test that the application builds correctly:
+3. Run the full test suite (this is exactly what CI runs):
 
 ```bash
-wails dev
+./test.sh
 ```
 
 4. Commit your changes:
@@ -143,7 +145,8 @@ docs: update documentation
 - Keep code simple and readable.
 - Follow existing project patterns.
 - Avoid unnecessary dependencies.
-- Test your changes before submitting.
+- Test your changes before submitting (`./test.sh`).
+- Put new tests under `tests/`, not next to the source they cover.
 - Write clear commit messages.
 
 ---

@@ -145,12 +145,34 @@ clear reason.
 
 ## Testing
 
-- **All tests live in the top-level `tests/` folder**, not next to the source:
+**The single documented command is `./test.sh`** — it runs the complete
+validation and is exactly what CI runs, so local and CI cannot drift apart.
+
+```bash
+./test.sh              # frontend + backend
+./test.sh frontend     # frontend only
+./test.sh backend      # backend only
+```
+
+It delegates to two scripts that also work standalone:
+
+| Script                        | Steps                                                        |
+| ----------------------------- | ------------------------------------------------------------ |
+| `scripts/test-frontend.sh`    | lint, `tsc` (app), `tsc` (tests), `vitest run`, `vite build`  |
+| `scripts/test-backend.sh`     | `gofmt -l`, `go vet`, `go test` (uncached)                    |
+
+`.github/workflows/ci.yml` runs those same two scripts in two independent,
+parallel `Frontend` / `Backend` jobs on every pull request and push to `main`.
+
+- **All tests live in the top-level `tests/` folder**, not next to the source.
+  This includes helpers, fixtures, mocks, setup files and test configuration.
+  Never add a duplicate test file under `frontend/src` or `services/`.
   - `tests/backend/` mirrors the package layout (`app_test.go`,
     `services/<pkg>/*_test.go`). Go requires test files to sit in their package
     directory, so each one is a **symlink** into place (`app_test.go`,
     `services/*/*_test.go` → `tests/backend/...`). Edit the file under
-    `tests/backend/`, never the symlink.
+    `tests/backend/`, never the symlink. A lost target silently degrades to
+    "no test files", so `test-backend.sh` fails fast on broken symlinks.
   - `tests/backend/` is its own Go module (`tests/go.mod`) so the root module's
     `./...` pattern does not try to compile the test sources as packages.
   - `tests/frontend/` holds the Vitest suites plus `test-setup.ts` and the
@@ -159,29 +181,31 @@ clear reason.
 - Frontend tests use Vitest + Testing Library (`npm test`, `npm run test:watch`,
   `npm run test:coverage`) with jsdom. Import app code via `@/…` and test
   helpers via `@tests/…`.
+- Test sources are type-checked by `frontend/tsconfig.test.json`
+  (`npm run typecheck:test`), separate from `tsconfig.json` which only covers
+  `frontend/src`. Keep both clean when touching tests.
 - Konva cannot render in jsdom, so `Canvas.test.tsx` mocks `react-konva`. That
   mock only applies because `frontend/vitest.config.ts` aliases `react-konva`
   to an absolute path — without it the bare specifier fails to resolve from
   `tests/frontend` and real Konva loads.
-- `npm run build` remains the frontend type-check plus production build.
-- Do not invent test, build, lint, or formatting commands.
+- There is no frontend linter yet; `npm run lint` is a placeholder and
+  `test-frontend.sh` skips the step until an ESLint config is added.
+- `gofmt` validation is read-only (`gofmt -l`) and skips `third_party/`, which
+  is a vendored Wails module pulled in by the `replace` directive in `go.mod`.
+- Do not invent test, build, lint, or formatting commands; extend the scripts
+  instead so CI picks the change up.
 
 ## Build and Validation
 
 Use the smallest relevant validation for the change:
 
 ```bash
-# Frontend type-check + build
-cd frontend && npm run build
-# Frontend tests
-cd frontend && npm test
+# Everything (recommended before opening a PR)
+./test.sh
 
-# Go formatting check (must output nothing)
-gofmt -l .
-# Go compile/test validation
-go test -tags webkit2_41 ./...
-# Go static validation
-go vet -tags webkit2_41 ./...
+# One half only
+./test.sh frontend
+./test.sh backend
 
 # Full application build (builds frontend, then Wails backend) -> build/bin/glowsnap
 ./scripts/build.sh
@@ -190,12 +214,24 @@ go vet -tags webkit2_41 ./...
 ./scripts/dev.sh
 ```
 
+The individual commands the scripts wrap (for iterating on one step):
+
+```bash
+cd frontend && npm run typecheck && npm run typecheck:test
+cd frontend && npm test
+cd frontend && npm run build
+
+gofmt -l .                                  # must output nothing
+go vet -tags webkit2_41 ./...
+go test -count=1 -tags webkit2_41 ./...
+```
+
 Docker (reproducible Linux build + tests):
 
 ```bash
 docker build -t glowsnap:build .                                  # build + test (as CI does)
 docker build --target artifacts -o out/ .                         # export only the binary
-docker run --rm glowsnap:build go test -tags webkit2_41 ./...     # run tests in container
+docker run --rm glowsnap:builder ./scripts/test-backend.sh        # backend checks in container
 ```
 
 Building locally requires WebKitGTK 4.1 + GTK3 dev libraries (see

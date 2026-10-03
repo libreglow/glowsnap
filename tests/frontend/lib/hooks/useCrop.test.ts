@@ -80,11 +80,13 @@ describe("useCrop", () => {
     act(() => result.current.updateCrop({ x: 25, y: 35 }));
     act(() => result.current.finishCrop());
 
-    let applied: ReturnType<typeof result.current.applyCrop>;
+    const applied: { value: ReturnType<typeof result.current.applyCrop> } = {
+      value: undefined as unknown as ReturnType<typeof result.current.applyCrop>,
+    };
     act(() => {
-      applied = result.current.applyCrop();
+      applied.value = result.current.applyCrop();
     });
-    expect(applied).toEqual({ x: 5, y: 5, width: 20, height: 30 });
+    expect(applied.value).toEqual({ x: 5, y: 5, width: 20, height: 30 });
     expect(result.current.cropRect).toBeNull();
   });
 
