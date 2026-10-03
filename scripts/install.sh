@@ -51,13 +51,17 @@ mkdir -p "$BINDIR" "$APPSDIR" "$ICONDIR"
 
 install -Dm755 "build/bin/$APP_NAME" "$BINDIR/$APP_NAME"
 install -Dm644 "build/glowsnap.desktop" "$APPSDIR/glowsnap.desktop"
-cp -r "build/icons/hicolor" "$ICONDIR/hicolor"
+cp -r "build/icons/hicolor/." "$ICONDIR/hicolor/"
+
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t "$ICONDIR/hicolor" >/dev/null 2>&1 || true
+fi
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "$APPSDIR" >/dev/null 2>&1 || true
+fi
 
 echo "Installed Glowsnap to $PREFIX:"
 echo "  $BINDIR/$APP_NAME"
 echo "  $APPSDIR/glowsnap.desktop"
 echo "  $ICONDIR/hicolor/*/apps/glowsnap.png"
 echo
-echo "Note: if the icon does not appear in the launcher/taskbar, refresh the"
-echo "icon cache (or log out and back in). Example:"
-echo "  gtk-update-icon-cache -f \"$ICONDIR/hicolor\""
