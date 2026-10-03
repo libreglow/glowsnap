@@ -10,7 +10,6 @@ const TOOLS: Array<[Tool, string]> = [
   ["crop", "Crop"],
   ["arrow", "Arrow"],
   ["text", "Text"],
-  ["number", "Number"],
   ["pen", "Pen"],
   ["rectangle", "Rect"],
   ["circle", "Circle"],

@@ -79,7 +79,6 @@ function normalizeTool(value: string | undefined): Tool {
     "crop",
     "arrow",
     "text",
-    "number",
     "pen",
     "rectangle",
     "circle",
@@ -315,7 +314,7 @@ export default function Editor({ imageUrl, onBack }: EditorProps) {
     const shape = shapes.find((s) => s.id === selectedId);
     if (!shape) return;
     loadingStyleRef.current = true;
-    if (shape.type === "text" || shape.type === "number") {
+    if (shape.type === "text") {
       setSelectedStyle((prev) => ({
         ...prev,
         color: shape.fill || prev.color,
@@ -357,7 +356,7 @@ export default function Editor({ imageUrl, onBack }: EditorProps) {
     if (loadingStyleRef.current) return;
     if (selectedId && selectedTool === "select") {
       const shape = shapes.find((s) => s.id === selectedId);
-      if (shape && (shape.type === "text" || shape.type === "number")) {
+      if (shape && shape.type === "text") {
         const nextFontStyle =
           (selectedStyle.isBold ? "bold " : "") +
           (selectedStyle.isItalic ? "italic" : "");
@@ -413,7 +412,7 @@ export default function Editor({ imageUrl, onBack }: EditorProps) {
     if (selectedId && selectedTool === "select") {
       const shape = shapes.find((s) => s.id === selectedId);
       if (shape) {
-        if (shape.type === "text" || shape.type === "number") {
+        if (shape.type === "text") {
           if (shape.fill !== selectedStyle.color) {
             updateShape(selectedId, { fill: selectedStyle.color }, true);
           }
@@ -720,8 +719,7 @@ export default function Editor({ imageUrl, onBack }: EditorProps) {
           case "edit-text": {
             if (selectedTool !== "select" || !selectedId) return false;
             const shape = shapes.find((s) => s.id === selectedId);
-            if (!shape || (shape.type !== "text" && shape.type !== "number"))
-              return false;
+            if (!shape || shape.type !== "text") return false;
             beginEditing(shape);
             return true;
           }

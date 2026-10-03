@@ -316,12 +316,6 @@ describe("OptionsBar", () => {
     expect(screen.queryByTitle("Bold")).not.toBeInTheDocument();
   });
 
-  it("renders the number tool controls", () => {
-    const { container } = renderBar("number");
-    expect(colorInput(container)).toBeTruthy();
-    expect(screen.queryByLabelText("Font family")).not.toBeInTheDocument();
-  });
-
   it("exposes a slider per numeric control", () => {
     const { container } = renderBar("text");
     expect(rangeInputs(container)).toHaveLength(5);

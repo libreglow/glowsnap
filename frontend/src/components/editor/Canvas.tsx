@@ -369,7 +369,7 @@ const ShapeNode = memo(function ShapeNode({
 
   if (hidden) return null;
 
-  const isTextShape = shape.type === "text" || shape.type === "number";
+  const isTextShape = shape.type === "text";
   const origin = shapeLocalOrigin(shape);
   const stroke = shape.stroke;
   const strokeWidth = shape.strokeWidth;
@@ -438,8 +438,7 @@ const ShapeNode = memo(function ShapeNode({
       );
       break;
     }
-    case "text":
-    case "number": {
+    case "text": {
       const w = shape.width || 100;
       const h = shape.height || (shape.fontSize || 24) * 1.2;
       node = (
@@ -858,7 +857,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         return;
       }
 
-      if (selectedShape.type === "text" || selectedShape.type === "number") {
+      if (selectedShape.type === "text") {
         transformerRef.current?.nodes([]);
         transformerRef.current?.getLayer()?.batchDraw();
         textTransformerRef.current?.nodes([node]);
@@ -875,11 +874,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       (e: Konva.KonvaEventObject<Event>) => {
         const id = e.currentTarget.id() || e.target.id();
         if (!id) return;
-        if (
-          selectedTool === "select" ||
-          selectedTool === "text" ||
-          selectedTool === "number"
-        ) {
+        if (selectedTool === "select" || selectedTool === "text") {
           setSelectedId(id);
           if (selectedTool !== "select") onChangeTool?.("select");
           e.cancelBubble = true;
@@ -1429,22 +1424,15 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         const id =
           Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
 
-        if (selectedTool === "text" || selectedTool === "number") {
-          const isNumber = selectedTool === "number";
-          const text =
-            selectedTool === "number"
-              ? (
-                  shapes.filter((s) => s.type === "number").length + 1
-                ).toString()
-              : "Text";
+        if (selectedTool === "text") {
+          const text = "Text";
           const fillColor = color;
-          const style = selectedTool === "number" ? "bold" : "";
 
           const measureNode = new Konva.Text({
             text,
             fontSize,
             fontFamily,
-            fontStyle: style,
+            fontStyle: "",
             padding: 4,
           });
           const measuredWidth = measureNode.width() * 8;
@@ -1456,7 +1444,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
 
           const textShape: ShapeConfig = {
             id,
-            type: selectedTool === "number" ? "number" : "text",
+            type: "text",
             x: pos.x,
             y: pos.y,
             text,
@@ -1464,7 +1452,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
             fillEnabled: true,
             fontSize,
             fontFamily,
-            fontStyle: style,
+            fontStyle: "",
             opacity,
             align: textAlign || "left",
             lineHeight: lineHeight ?? 1,
@@ -1474,10 +1462,8 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
             height: measuredHeight,
           };
           addShape(textShape);
-          if (!isNumber) {
-            onChangeTool?.("select");
-            onTextDoubleClick(textShape);
-          }
+          onChangeTool?.("select");
+          onTextDoubleClick(textShape);
         }
       },
       [
@@ -1485,7 +1471,6 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         color,
         strokeWidth,
         opacity,
-        shapes,
         addShape,
         onChangeTool,
         onTextDoubleClick,

@@ -197,8 +197,7 @@ export default function FloatingToolbar({
 
   const isRectOrCircle =
     selectedShape?.type === "rect" || selectedShape?.type === "circle";
-  const isText =
-    selectedShape?.type === "text" || selectedShape?.type === "number";
+  const isText = selectedShape?.type === "text";
 
   const currentOpacity = selectedShape?.opacity ?? 1;
   const currentFontSize = selectedShape?.fontSize ?? 24;

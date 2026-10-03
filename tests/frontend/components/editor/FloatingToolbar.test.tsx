@@ -192,15 +192,12 @@ describe("FloatingToolbar", () => {
     });
   });
 
-  it.each([["text"], ["number"]] as const)(
-    "shows text styling for a %s",
-    (type) => {
-      renderToolbar(shapeEntry({ type }));
-      expect(screen.getByTitle("Bold")).toBeInTheDocument();
-      expect(screen.getByLabelText("Font family")).toBeInTheDocument();
-      expect(screen.queryByTitle("No fill")).not.toBeInTheDocument();
-    },
-  );
+  it("shows text styling for a text", () => {
+    renderToolbar(shapeEntry({ type: "text" }));
+    expect(screen.getByTitle("Bold")).toBeInTheDocument();
+    expect(screen.getByLabelText("Font family")).toBeInTheDocument();
+    expect(screen.queryByTitle("No fill")).not.toBeInTheDocument();
+  });
 
   it("hides text styling for shapes", () => {
     renderToolbar(shapeEntry({ type: "rect" }));

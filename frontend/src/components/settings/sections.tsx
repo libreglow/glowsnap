@@ -359,7 +359,6 @@ const TOOL_OPTIONS: { value: Tool; label: string }[] = [
   { value: "crop", label: "Crop" },
   { value: "arrow", label: "Arrow" },
   { value: "text", label: "Text" },
-  { value: "number", label: "Number" },
   { value: "pen", label: "Pen" },
   { value: "rectangle", label: "Rectangle" },
   { value: "circle", label: "Circle" },

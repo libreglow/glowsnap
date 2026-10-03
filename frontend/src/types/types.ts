@@ -86,7 +86,6 @@ export type Tool =
   | "crop"
   | "arrow"
   | "text"
-  | "number"
   | "pen"
   | "rectangle"
   | "circle"
@@ -94,7 +93,7 @@ export type Tool =
 
 export interface ShapeConfig {
   id: string;
-  type: "rect" | "circle" | "arrow" | "text" | "number" | "line";
+  type: "rect" | "circle" | "arrow" | "text" | "line";
   x: number;
   y: number;
   width?: number;
