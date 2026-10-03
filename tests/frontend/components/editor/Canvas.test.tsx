@@ -14,6 +14,11 @@ const konva = vi.hoisted(() => ({
   stageContainer: null as HTMLDivElement | null,
 }));
 
+const konvaHandlerRegistry = new WeakMap<
+  Element,
+  Record<string, (e: unknown) => void>
+>();
+
 vi.mock("react-konva", async () => {
   const React = await import("react");
 
@@ -44,6 +49,7 @@ vi.mock("react-konva", async () => {
       height: () => Number(props.height ?? 0),
       scaleX: () => Number(props.scaleX ?? 1),
       scaleY: () => Number(props.scaleY ?? 1),
+      rotation: () => Number(props.rotation ?? 0),
       getIntersection: () => null,
       to: () => ({ x: 0, y: 0 }),
     };
@@ -88,14 +94,35 @@ vi.mock("react-konva", async () => {
 
       React.useImperativeHandle(ref, () => node, []);
 
-      const konvaEvent = (e: unknown) => ({
-        evt: (e as { nativeEvent?: unknown }).nativeEvent ?? e,
-        target: node,
-        currentTarget: node,
-        cancelBubble: false,
-      });
+      const konvaEvent = (e: any) => {
+        let targetObj = node;
+        const candidate = e?.target;
+        if (candidate && typeof candidate.id === "function") {
+          targetObj = candidate;
+        }
+        return {
+          evt: e?.nativeEvent ?? e,
+          target: targetObj,
+          currentTarget: node,
+          cancelBubble: false,
+        };
+      };
+
+      const handlers = {
+        onClick: (e: unknown) => props.onClick?.(konvaEvent(e)),
+        onMouseDown: (e: unknown) => props.onMouseDown?.(konvaEvent(e)),
+        onMouseUp: (e: unknown) => props.onMouseUp?.(konvaEvent(e)),
+        onMouseMove: (e: unknown) => props.onMouseMove?.(konvaEvent(e)),
+        onDoubleClick: (e: unknown) => props.onDblClick?.(konvaEvent(e)),
+        onDragEnd: (e: any) => props.onDragEnd?.(konvaEvent(e)),
+        onTransformEnd: (e: any) => props.onTransformEnd?.(konvaEvent(e)),
+        onTransform: (e: any) => props.onTransform?.(konvaEvent(e)),
+      };
 
       return React.createElement("div", {
+        ref: (instance: HTMLDivElement | null) => {
+          if (instance) konvaHandlerRegistry.set(instance, handlers);
+        },
         "data-testid": `konva-${name}`,
         "data-node": name,
         "data-id": props.id ?? "",
@@ -114,14 +141,15 @@ vi.mock("react-konva", async () => {
         "data-font-size": props.fontSize ?? "",
         "data-listen": props.listening === false ? "false" : "true",
         style: props.style,
-        onClick: (e: unknown) => props.onClick?.(konvaEvent(e)),
-        onMouseDown: (e: unknown) => props.onMouseDown?.(konvaEvent(e)),
-        onMouseUp: (e: unknown) => props.onMouseUp?.(konvaEvent(e)),
-        onMouseMove: (e: unknown) => props.onMouseMove?.(konvaEvent(e)),
-        onDoubleClick: (e: unknown) => props.onDblClick?.(konvaEvent(e)),
+        onClick: handlers.onClick,
+        onMouseDown: handlers.onMouseDown,
+        onMouseUp: handlers.onMouseUp,
+        onMouseMove: handlers.onMouseMove,
+        onDoubleClick: handlers.onDoubleClick,
         children: props.children,
       });
     });
+
 
   const stageNode = makeNode("Stage", {});
   const layerNode = makeNode("Layer", {});
@@ -193,6 +221,56 @@ function renderCanvas(overrides: Record<string, unknown> = {}) {
 const node = (name: string) => screen.getByTestId(`konva-${name}`);
 const nodes = (name: string) =>
   Array.from(document.querySelectorAll(`[data-node="${name}"]`)) as HTMLElement[];
+
+const shapeGroups = () =>
+  nodes("Group").filter((g) => g.getAttribute("data-id")) as HTMLElement[];
+
+const fireKonva = (
+  element: Element,
+  type: string,
+  payload: Record<string, unknown>,
+) => {
+  const key = `on${type.charAt(0).toUpperCase()}${type.slice(1)}`;
+  konvaHandlerRegistry.get(element)?.[key]?.(payload);
+};
+
+const dragEndWith = (
+  element: Element,
+  x: number,
+  y: number,
+  extra: Record<string, unknown> = {},
+) => {
+  fireKonva(element, "dragEnd", {
+    target: {
+      id: () => "s1",
+      x: () => x,
+      y: () => y,
+      scaleX: () => 1,
+      scaleY: () => 1,
+      rotation: () => 0,
+      ...extra,
+    },
+  });
+};
+
+const transformEndWith = (
+  element: Element,
+  values: { x: number; y: number; scaleX: number; scaleY: number },
+) => {
+  fireKonva(element, "transformEnd", {
+    target: {
+      id: () => "s1",
+      x: () => values.x,
+      y: () => values.y,
+      scaleX: () => values.scaleX,
+      scaleY: () => values.scaleY,
+      rotation: () => 0,
+    },
+  });
+};
+
+const groupFor = (shapeId: string) =>
+  shapeGroups().find((g) => g.getAttribute("data-id") === shapeId);
 
 function pointer(x: number, y: number) {
   konva.pointer = { x, y };
@@ -276,20 +354,26 @@ describe("Canvas", () => {
     expect(nodes("Text")).toHaveLength(1);
   });
 
-  it("centres a rectangle on its configured box", () => {
+  it("positions a rectangle inside its own group frame", () => {
     renderCanvas({
       shapes: [shapeEntry({ id: "s1", type: "rect", x: 10, y: 20, width: 100, height: 40 })],
     });
+    const group = groupFor("s1")!;
+    expect(group.getAttribute("data-x")).toBe("10");
+    expect(group.getAttribute("data-y")).toBe("20");
     const rect = nodes("Rect")[0];
-    expect(rect.getAttribute("data-x")).toBe("60");
-    expect(rect.getAttribute("data-y")).toBe("40");
+    expect(rect.getAttribute("data-x")).toBe("50");
+    expect(rect.getAttribute("data-y")).toBe("20");
     expect(rect.getAttribute("data-width")).toBe("100");
   });
 
   it("uses a default diameter for a circle without a size", () => {
     renderCanvas({
-      shapes: [shapeEntry({ id: "s1", type: "circle", x: 0, y: 0, width: undefined, height: undefined })],
+      shapes: [shapeEntry({ id: "s1", type: "circle", x: 5, y: 6, width: undefined, height: undefined })],
     });
+    const group = groupFor("s1")!;
+    expect(group.getAttribute("data-x")).toBe("5");
+    expect(group.getAttribute("data-y")).toBe("6");
     const ellipse = nodes("Ellipse")[0];
     expect(ellipse.getAttribute("data-x")).toBe("40");
     expect(ellipse.getAttribute("data-y")).toBe("40");
@@ -331,11 +415,14 @@ describe("Canvas", () => {
     expect(arrow.getAttribute("data-fill")).toBe("#123456");
   });
 
-  it("renders a line with its points", () => {
+  it("renders a line with points relative to its group origin", () => {
     renderCanvas({
       shapes: [shapeEntry({ id: "s1", type: "line", points: [5, 5, 25, 25] })],
     });
-    expect(nodes("Line")[0].getAttribute("data-points")).toBe("[5,5,25,25]");
+    const group = groupFor("s1")!;
+    expect(group.getAttribute("data-x")).toBe("5");
+    expect(group.getAttribute("data-y")).toBe("5");
+    expect(nodes("Line")[0].getAttribute("data-points")).toBe("[0,0,20,20]");
   });
 
   it("renders text content and font settings", () => {
@@ -509,6 +596,111 @@ describe("Canvas", () => {
     expect(id).toBe("s1");
     expect(attrs.eraseStrokes[0].strokeWidth).toBe(30);
     expect(save).toBe(false);
+  });
+
+  it("stores erase strokes in the shape's local frame", () => {
+    konva.intersectionId = "s1";
+    const { updateShape } = renderCanvas({
+      selectedTool: "eraser",
+      shapes: [
+        shapeEntry({ id: "s1", type: "rect", x: 100, y: 50, width: 40, height: 40 }),
+      ],
+      eraserSize: 30,
+    });
+    pointer(120, 70);
+    fireEvent.mouseDown(node("Stage"), { button: 0 });
+
+    const [, attrs] = updateShape.mock.calls[0];
+    expect(attrs.eraseStrokes[0].points[0]).toBe(20);
+    expect(attrs.eraseStrokes[0].points[1]).toBe(20);
+  });
+
+  it("keeps erase strokes unchanged when the shape is dragged", () => {
+    const eraseStrokes = [{ points: [10, 10, 20, 20], strokeWidth: 10 }];
+    const { updateShape } = renderCanvas({
+      selectedTool: "select",
+      shapes: [
+        shapeEntry({
+          id: "s1",
+          type: "rect",
+          x: 0,
+          y: 0,
+          width: 40,
+          height: 40,
+          eraseStrokes,
+        }),
+      ],
+    });
+    dragEndWith(groupFor("s1")!, 50, 50);
+
+    expect(updateShape).toHaveBeenCalledWith("s1", { x: 50, y: 50 });
+  });
+
+  it("renders erase strokes inside the shape group so they follow it", () => {
+    renderCanvas({
+      shapes: [
+        shapeEntry({
+          id: "s1",
+          type: "rect",
+          x: 100,
+          y: 100,
+          width: 40,
+          height: 40,
+          eraseStrokes: [{ points: [10, 10, 20, 20], strokeWidth: 10 }],
+        }),
+      ],
+    });
+    const group = groupFor("s1")!;
+    expect(group.getAttribute("data-x")).toBe("100");
+    expect(group.getAttribute("data-y")).toBe("100");
+    expect(group.contains(nodes("Line")[0])).toBe(true);
+    expect(nodes("Line")[0].getAttribute("data-points")).toBe("[10,10,20,20]");
+  });
+
+  it("scales erase strokes with the shape on transform", () => {
+    const { updateShape } = renderCanvas({
+      selectedTool: "select",
+      shapes: [
+        shapeEntry({
+          id: "s1",
+          type: "rect",
+          x: 10,
+          y: 10,
+          width: 40,
+          height: 40,
+          eraseStrokes: [{ points: [10, 10, 20, 20], strokeWidth: 10 }],
+        }),
+      ],
+    });
+    transformEndWith(groupFor("s1")!, { x: 20, y: 20, scaleX: 2, scaleY: 2 });
+
+    expect(updateShape).toHaveBeenCalledWith(
+      "s1",
+      expect.objectContaining({
+        width: 80,
+        height: 80,
+        eraseStrokes: [{ points: [20, 20, 40, 40], strokeWidth: 20 }],
+      }),
+    );
+  });
+
+  it("keeps erase strokes on a moved line", () => {
+    const { updateShape } = renderCanvas({
+      selectedTool: "select",
+      shapes: [
+        shapeEntry({
+          id: "s1",
+          type: "line",
+          points: [10, 10, 30, 30],
+          eraseStrokes: [{ points: [5, 5, 10, 10], strokeWidth: 8 }],
+        }),
+      ],
+    });
+    dragEndWith(groupFor("s1")!, 30, 10);
+
+    expect(updateShape).toHaveBeenCalledWith("s1", {
+      points: [30, 10, 50, 30],
+    });
   });
 
   it("ignores the eraser without a hit shape", () => {
