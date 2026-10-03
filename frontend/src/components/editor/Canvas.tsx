@@ -238,7 +238,12 @@ function getConstrainedPoint(
   };
 }
 
-function getLineBounds(points: number[]): { cx: number; cy: number } {
+function getPointsBounds(points: number[]): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+} {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -257,7 +262,68 @@ function getLineBounds(points: number[]): { cx: number; cy: number } {
     maxX = 0;
     maxY = 0;
   }
+  return { minX, minY, maxX, maxY };
+}
+
+function getLineBounds(points: number[]): { cx: number; cy: number } {
+  const { minX, minY, maxX, maxY } = getPointsBounds(points);
   return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+}
+
+function isPointsShape(
+  shape: ShapeConfig,
+): shape is ShapeConfig & { points: number[] } {
+  return shape.type === "line" || shape.type === "arrow";
+}
+
+function shapeLocalOrigin(shape: ShapeConfig): { x: number; y: number } {
+  if (isPointsShape(shape)) {
+    const { minX, minY } = getPointsBounds(shape.points || []);
+    return { x: minX, y: minY };
+  }
+  return { x: shape.x, y: shape.y };
+}
+
+function scaleLocalPoints(
+  points: number[],
+  scaleX: number,
+  scaleY: number,
+): number[] {
+  return points.map((v, i) => (i % 2 === 0 ? v * scaleX : v * scaleY));
+}
+
+function toLocalPoints(
+  points: number[],
+  origin: { x: number; y: number },
+): number[] {
+  return points.map((v, i) => (i % 2 === 0 ? v - origin.x : v - origin.y));
+}
+
+function eraseCacheSignature(shape: ShapeConfig): string {
+  return [
+    shape.type,
+    shape.width ?? "",
+    shape.height ?? "",
+    shape.points?.length ?? "",
+    shape.text ?? "",
+    shape.fill ?? "",
+    shape.stroke ?? "",
+    shape.strokeWidth ?? "",
+    shape.opacity ?? "",
+    shape.fillEnabled ?? "",
+    shape.fontSize ?? "",
+    shape.fontFamily ?? "",
+    shape.fontStyle ?? "",
+    shape.align ?? "",
+    shape.lineHeight ?? "",
+    shape.letterSpacing ?? "",
+    shape.textDecoration ?? "",
+    shape.direction ?? "",
+    (shape.eraseStrokes || []).length,
+    (shape.eraseStrokes || [])
+      .map((s) => `${s.points.length}:${s.strokeWidth}`)
+      .join("|"),
+  ].join("~");
 }
 
 const Canvas = forwardRef<Konva.Stage, CanvasProps>(
@@ -322,6 +388,7 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
 
     const isErasing = useRef(false);
     const erasingShapeId = useRef<string | null>(null);
+    const erasingOriginRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
     const currentEraseStroke = useRef<{
       points: number[];
       strokeWidth: number;
@@ -448,11 +515,20 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       });
     }, []);
 
+    const cacheSignatures = useRef(new Map<string, string>());
+
     useEffect(() => {
       shapes.forEach((s) => {
-        if (s.eraseStrokes?.length) recacheShapeGroup(s.id);
+        if (!s.eraseStrokes?.length) {
+          cacheSignatures.current.delete(s.id);
+          return;
+        }
+        const signature = eraseCacheSignature(s);
+        if (cacheSignatures.current.get(s.id) === signature) return;
+        cacheSignatures.current.set(s.id, signature);
+        recacheShapeGroup(s.id);
       });
-    }, [shapes]);
+    }, [shapes, recacheShapeGroup]);
 
     const getGradientEndPoint = () => {
       const rad = (backgroundSettings.angle * Math.PI) / 180;
@@ -566,6 +642,40 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       }
     }, [selectedId, selectedTool, shapes, editingTextId]);
 
+    const handleShapeSelect = useCallback(
+      (e: Konva.KonvaEventObject<Event>) => {
+        const id = e.currentTarget.id() || e.target.id();
+        if (!id) return;
+        if (
+          selectedTool === "select" ||
+          selectedTool === "text" ||
+          selectedTool === "number"
+        ) {
+          setSelectedId(id);
+          if (selectedTool !== "select") onChangeTool?.("select");
+          e.cancelBubble = true;
+        }
+      },
+      [selectedTool, setSelectedId, onChangeTool],
+    );
+
+    const scaleEraseStrokes = useCallback(
+      (
+        strokes: ShapeConfig["eraseStrokes"],
+        scaleX: number,
+        scaleY: number,
+      ): ShapeConfig["eraseStrokes"] => {
+        if (!strokes?.length) return strokes;
+        const strokeScale = Math.max(scaleX, scaleY);
+        return strokes.map((stroke) => ({
+          ...stroke,
+          points: scaleLocalPoints(stroke.points, scaleX, scaleY),
+          strokeWidth: stroke.strokeWidth * strokeScale,
+        }));
+      },
+      [],
+    );
+
     const handleShapeDragEnd = useCallback(
       (e: Konva.KonvaEventObject<DragEvent>) => {
         const node = e.target;
@@ -573,32 +683,32 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         const shape = shapes.find((s) => s.id === id);
         if (!shape) return;
 
-        if (shape.type === "circle") {
-          const w = shape.width || 80;
-          const h = shape.height || 80;
-          updateShape(id, { x: node.x() - w / 2, y: node.y() - h / 2 });
-        } else if (shape.type === "rect") {
-          const w = shape.width || 0;
-          const h = shape.height || 0;
-          updateShape(id, { x: node.x() - w / 2, y: node.y() - h / 2 });
-        } else if (shape.type === "text" || shape.type === "number") {
-          const w = shape.width || 100;
-          const h = shape.height || (shape.fontSize || 24) * 1.2;
-          updateShape(id, { x: node.x() - w / 2, y: node.y() - h / 2 });
-        } else {
+        const origin = shapeLocalOrigin(shape);
+        const dx = node.x() - origin.x;
+        const dy = node.y() - origin.y;
+        if (dx === 0 && dy === 0) return;
+
+        if (isPointsShape(shape)) {
           const pts = shape.points || [];
-          const { cx, cy } = getLineBounds(pts);
-          const dx = node.x() - cx;
-          const dy = node.y() - cy;
-          if (dx !== 0 || dy !== 0) {
-            const newPoints = pts.map((v, i) =>
-              i % 2 === 0 ? v + dx : v + dy,
-            );
-            updateShape(id, { points: newPoints });
-          }
+          updateShape(id, {
+            points: pts.map((v, i) => (i % 2 === 0 ? v + dx : v + dy)),
+          });
+        } else {
+          updateShape(id, { x: shape.x + dx, y: shape.y + dy });
         }
       },
       [shapes, updateShape],
+    );
+
+    const handleTextDoubleClick = useCallback(
+      (e: Konva.KonvaEventObject<Event>) => {
+        const id = e.currentTarget.id() || e.target.id();
+        const shape = shapes.find((s) => s.id === id);
+        if (!shape) return;
+        e.cancelBubble = true;
+        onTextDoubleClick(shape);
+      },
+      [shapes, onTextDoubleClick],
     );
 
     const handleTransformEnd = useCallback(
@@ -613,78 +723,110 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         node.scaleX(1);
         node.scaleY(1);
 
+        const origin = shapeLocalOrigin(shape);
+        const newOrigin = { x: node.x(), y: node.y() };
         const newAttrs: Partial<ShapeConfig> = {
           rotation: node.rotation(),
         };
 
-        if (shape.type === "circle") {
-          const newWidth = (shape.width || 80) * scaleX;
-          const newHeight = (shape.height || 80) * scaleY;
-          newAttrs.width = Math.max(10, newWidth);
-          newAttrs.height = Math.max(10, newHeight);
-          newAttrs.x = node.x() - newWidth / 2;
-          newAttrs.y = node.y() - newHeight / 2;
-        } else if (shape.type === "rect") {
-          const newWidth = (shape.width || 100) * scaleX;
-          const newHeight = (shape.height || 30) * scaleY;
-          newAttrs.width = newWidth;
-          newAttrs.height = newHeight;
-          newAttrs.x = node.x() - newWidth / 2;
-          newAttrs.y = node.y() - newHeight / 2;
+        if (isPointsShape(shape)) {
+          newAttrs.points = scaleLocalPoints(
+            toLocalPoints(shape.points || [], origin),
+            scaleX,
+            scaleY,
+          ).map((v, i) => (i % 2 === 0 ? v + newOrigin.x : v + newOrigin.y));
         } else {
-          if (shape.width) newAttrs.width = (shape.width || 100) * scaleX;
-          if (shape.height) newAttrs.height = (shape.height || 30) * scaleY;
-          newAttrs.x = node.x();
-          newAttrs.y = node.y();
+          if (shape.width) newAttrs.width = shape.width * scaleX;
+          if (shape.height) newAttrs.height = shape.height * scaleY;
+          newAttrs.x = newOrigin.x;
+          newAttrs.y = newOrigin.y;
         }
+
+        newAttrs.eraseStrokes = scaleEraseStrokes(
+          shape.eraseStrokes,
+          scaleX,
+          scaleY,
+        );
 
         updateShape(id, newAttrs);
       },
-      [shapes, updateShape],
+      [shapes, updateShape, scaleEraseStrokes],
     );
+
+    const measureTextHeight = (
+      shape: ShapeConfig,
+      width: number,
+      defaults: {
+        lineHeight?: number;
+        letterSpacing?: number;
+        textDecoration?: string;
+      },
+    ): number => {
+      const probe = new Konva.Text({
+        text: shape.text || "",
+        width,
+        fontSize: shape.fontSize,
+        fontFamily: shape.fontFamily,
+        fontStyle: shape.fontStyle,
+        align: shape.align || "left",
+        lineHeight: shape.lineHeight ?? defaults.lineHeight ?? 1,
+        letterSpacing: shape.letterSpacing ?? defaults.letterSpacing ?? 0,
+        textDecoration: shape.textDecoration || defaults.textDecoration || "none",
+        wrap: "word",
+      });
+      const measured = Math.max(shape.fontSize || 24, probe.height() || 0);
+      probe.destroy();
+      return measured;
+    };
 
     const handleTextTransform = useCallback(
       (e: Konva.KonvaEventObject<Event>) => {
-        const node = e.target as Konva.Text;
+        const node = e.target;
         const id = node.id();
         const shape = shapes.find((s) => s.id === id);
         if (!shape) return;
 
         const scaleX = node.scaleX();
-        const currentAttrWidth = node.width() || shape.width || 100;
+        const currentAttrWidth = shape.width || 100;
 
         node.scaleX(1);
         node.scaleY(1);
 
         const newWidth = Math.max(20, currentAttrWidth * scaleX);
-        node.width(newWidth);
-
-        node.height(undefined as unknown as number);
-        const autoHeight = node.getHeight();
-        const contentHeight = Math.max(shape.fontSize || 24, autoHeight || 0);
-
-        const centerX = node.x();
-        const centerY = node.y();
-        node.offsetX(newWidth / 2);
-        node.offsetY(contentHeight / 2);
+        const contentHeight = measureTextHeight(shape, newWidth, {
+          lineHeight,
+          letterSpacing,
+          textDecoration,
+        });
 
         updateShape(
           id,
           {
-            x: centerX - newWidth / 2,
-            y: centerY - contentHeight / 2,
+            x: node.x(),
+            y: node.y(),
             width: newWidth,
             height: contentHeight,
+            eraseStrokes: scaleEraseStrokes(
+              shape.eraseStrokes,
+              scaleX,
+              1,
+            ),
           },
           false,
         );
       },
-      [shapes, updateShape],
+      [
+        shapes,
+        updateShape,
+        lineHeight,
+        letterSpacing,
+        textDecoration,
+      ],
     );
 
     const handleTextTransformEnd = useCallback(
       (e: Konva.KonvaEventObject<Event>) => {
-        const node = e.target as Konva.Text;
+        const node = e.target;
         const id = node.id();
         const shape = shapes.find((s) => s.id === id);
         if (!shape) return;
@@ -692,15 +834,12 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
         node.scaleX(1);
         node.scaleY(1);
 
-        const w = node.width() || shape.width || 100;
-        const h = node.height() || shape.height || (shape.fontSize || 24) * 1.2;
-
         updateShape(id, {
           rotation: node.rotation(),
-          width: w,
-          height: h,
-          x: node.x() - w / 2,
-          y: node.y() - h / 2,
+          width: shape.width,
+          height: shape.height,
+          x: node.x(),
+          y: node.y(),
         });
       },
       [shapes, updateShape],
@@ -767,8 +906,11 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
             ERASER_MIN_WIDTH,
             eraserSize ?? strokeWidth * 4,
           );
+          const origin = shapeLocalOrigin(shape);
+          erasingOriginRef.current = origin;
+          const local = { x: pos.x - origin.x, y: pos.y - origin.y };
           const newStroke = {
-            points: [pos.x, pos.y, pos.x + 0.01, pos.y + 0.01],
+            points: [local.x, local.y, local.x + 0.01, local.y + 0.01],
             strokeWidth: brushWidth,
           };
           currentEraseStroke.current = newStroke;
@@ -878,7 +1020,12 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
           currentEraseStroke.current
         ) {
           const stroke = currentEraseStroke.current;
-          const nextPoints = appendSmoothErasePoints(stroke.points, point);
+          const origin = erasingOriginRef.current;
+          const localPoint = { x: point.x - origin.x, y: point.y - origin.y };
+          const nextPoints = appendSmoothErasePoints(
+            stroke.points,
+            localPoint,
+          );
           if (nextPoints === stroke.points) return;
 
           stroke.points = nextPoints;
@@ -1123,42 +1270,6 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
     );
 
     const renderShapeNode = (shape: ShapeConfig) => {
-      const commonProps = {
-        id: shape.id,
-        key: shape.id,
-        draggable: selectedTool === "select",
-        onClick: (e: Konva.KonvaEventObject<MouseEvent>) => {
-          if (
-            selectedTool === "select" ||
-            shape.type === "text" ||
-            shape.type === "number"
-          ) {
-            setSelectedId(shape.id);
-            if (selectedTool !== "select") onChangeTool?.("select");
-            e.cancelBubble = true;
-          }
-        },
-        onTap: (e: Konva.KonvaEventObject<Event>) => {
-          if (
-            selectedTool === "select" ||
-            shape.type === "text" ||
-            shape.type === "number"
-          ) {
-            setSelectedId(shape.id);
-            if (selectedTool !== "select") onChangeTool?.("select");
-            e.cancelBubble = true;
-          }
-        },
-        onDragEnd: handleShapeDragEnd,
-        stroke: shape.stroke,
-        fill:
-          shape.fillEnabled === false
-            ? "transparent"
-            : shape.fill || "transparent",
-        strokeWidth: shape.strokeWidth,
-        opacity: shape.opacity,
-      };
-
       const rotation = shape.rotation || 0;
 
       switch (shape.type) {
@@ -1167,43 +1278,61 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
           const h = shape.height || 0;
           return (
             <Rect
-              {...commonProps}
-              x={shape.x + w / 2}
-              y={shape.y + h / 2}
+              id={shape.id}
+              x={w / 2}
+              y={h / 2}
               width={w}
               height={h}
               offsetX={w / 2}
               offsetY={h / 2}
-              rotation={rotation}
-              onTransformEnd={handleTransformEnd}
+              stroke={shape.stroke}
+              fill={
+                shape.fillEnabled === false
+                  ? "transparent"
+                  : shape.fill || "transparent"
+              }
+              strokeWidth={shape.strokeWidth}
+              opacity={shape.opacity}
             />
           );
         }
-        case "circle":
+        case "circle": {
+          const w = shape.width || 80;
+          const h = shape.height || 80;
           return (
             <Ellipse
-              {...commonProps}
-              x={shape.x + (shape.width || 80) / 2}
-              y={shape.y + (shape.height || 80) / 2}
-              radiusX={(shape.width || 80) / 2}
-              radiusY={(shape.height || 80) / 2}
-              rotation={rotation}
-              onTransformEnd={handleTransformEnd}
+              id={shape.id}
+              x={w / 2}
+              y={h / 2}
+              radiusX={w / 2}
+              radiusY={h / 2}
+              stroke={shape.stroke}
+              fill={
+                shape.fillEnabled === false
+                  ? "transparent"
+                  : shape.fill || "transparent"
+              }
+              strokeWidth={shape.strokeWidth}
+              opacity={shape.opacity}
             />
           );
+        }
         case "arrow": {
-          const { cx, cy } = getLineBounds(shape.points || []);
+          const origin = shapeLocalOrigin(shape);
+          const localPoints = toLocalPoints(shape.points || [], origin);
+          const { cx, cy } = getLineBounds(localPoints);
           return (
             <Arrow
-              {...commonProps}
+              id={shape.id}
               fill={shape.stroke || shape.fill}
-              points={shape.points!}
+              points={localPoints}
               x={cx}
               y={cy}
               offsetX={cx}
               offsetY={cy}
-              rotation={rotation}
-              onTransformEnd={handleTransformEnd}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              opacity={shape.opacity}
             />
           );
         }
@@ -1213,9 +1342,9 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
           const h = shape.height || (shape.fontSize || 24) * 1.2;
           return (
             <Text
-              {...commonProps}
-              x={shape.x + w / 2}
-              y={shape.y + h / 2}
+              id={shape.id}
+              x={w / 2}
+              y={h / 2}
               offsetX={w / 2}
               offsetY={h / 2}
               width={w}
@@ -1230,26 +1359,20 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
               letterSpacing={shape.letterSpacing ?? letterSpacing ?? 0}
               textDecoration={shape.textDecoration || textDecoration || "none"}
               wrap="word"
-              onDblClick={(e) => {
-                e.cancelBubble = true;
-                onTextDoubleClick(shape);
-              }}
-              onDblTap={(e) => {
-                e.cancelBubble = true;
-                onTextDoubleClick(shape);
-              }}
-              onTransform={handleTextTransform}
-              onTransformEnd={handleTextTransformEnd}
-              rotation={rotation}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              opacity={shape.opacity}
             />
           );
         }
         case "line": {
-          const { cx, cy } = getLineBounds(shape.points || []);
+          const origin = shapeLocalOrigin(shape);
+          const localPoints = toLocalPoints(shape.points || [], origin);
+          const { cx, cy } = getLineBounds(localPoints);
           return (
             <Line
-              {...commonProps}
-              points={shape.points!}
+              id={shape.id}
+              points={localPoints}
               x={cx}
               y={cy}
               offsetX={cx}
@@ -1257,8 +1380,9 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
               tension={0.2}
               lineCap="round"
               lineJoin="round"
-              rotation={rotation}
-              onTransformEnd={handleTransformEnd}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              opacity={shape.opacity}
             />
           );
         }
@@ -1273,32 +1397,47 @@ const Canvas = forwardRef<Konva.Stage, CanvasProps>(
       const node = renderShapeNode(shape);
       if (!node) return null;
 
-      const hasErase = !!shape.eraseStrokes?.length;
+      const origin = shapeLocalOrigin(shape);
+      const isTextShape = shape.type === "text" || shape.type === "number";
+      const strokes = shape.eraseStrokes;
 
       return (
         <Group
           key={`group-${shape.id}`}
+          id={shape.id}
+          x={origin.x}
+          y={origin.y}
+          rotation={shape.rotation || 0}
+          draggable={selectedTool === "select"}
           ref={(instance) => {
             if (instance) shapeGroupRefs.current.set(shape.id, instance);
             else shapeGroupRefs.current.delete(shape.id);
           }}
+          onClick={handleShapeSelect}
+          onTap={handleShapeSelect}
+          onDblClick={isTextShape ? handleTextDoubleClick : undefined}
+          onDblTap={isTextShape ? handleTextDoubleClick : undefined}
+          onDragEnd={handleShapeDragEnd}
+          onTransformEnd={isTextShape ? handleTextTransformEnd : handleTransformEnd}
+          onTransform={isTextShape ? handleTextTransform : undefined}
         >
           {node}
-          {hasErase &&
-            shape.eraseStrokes!.map((stroke, i) => (
-              <Line
-                key={`${shape.id}-erase-${i}`}
-                points={stroke.points}
-                stroke="#000"
-                strokeWidth={stroke.strokeWidth}
-                lineCap="round"
-                lineJoin="round"
-                tension={0.4}
-                globalCompositeOperation="destination-out"
-                listening={false}
-                perfectDrawEnabled={false}
-              />
-            ))}
+          {strokes?.length
+            ? strokes.map((stroke, i) => (
+                <Line
+                  key={`${shape.id}-erase-${i}`}
+                  points={stroke.points}
+                  stroke="#000"
+                  strokeWidth={stroke.strokeWidth}
+                  lineCap="round"
+                  lineJoin="round"
+                  tension={0.4}
+                  globalCompositeOperation="destination-out"
+                  listening={false}
+                  perfectDrawEnabled={false}
+                />
+              ))
+            : null}
         </Group>
       );
     };
