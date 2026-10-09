@@ -44,6 +44,8 @@ export function OpenToolsPalette():Promise<void>;
 
 export function PauseRecording():Promise<void>;
 
+export function RenameRecording(arg1:string,arg2:string):Promise<void>;
+
 export function RenameScreenshot(arg1:string,arg2:string):Promise<void>;
 
 export function ResetSettings():Promise<settings.Settings>;

@@ -109,3 +109,43 @@ func indexOf(s, sub string) int {
 	}
 	return -1
 }
+
+func TestRenameRecordingRenamesVideoAndThumbnail(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	dir := filepath.Join(tmp, "Videos", "Screencasts")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	oldName := "Recording_2024-01-01_10-00-00.mp4"
+	if err := os.WriteFile(filepath.Join(dir, oldName), []byte("video"), 0o644); err != nil {
+		t.Fatalf("write video: %v", err)
+	}
+	oldThumb := "Recording_2024-01-01_10-00-00.jpg"
+	if err := os.WriteFile(filepath.Join(dir, oldThumb), []byte("thumb"), 0o644); err != nil {
+		t.Fatalf("write thumb: %v", err)
+	}
+
+	if err := (&App{}).RenameRecording(oldName, "My Clip"); err != nil {
+		t.Fatalf("RenameRecording: %v", err)
+	}
+
+	for _, name := range []string{"My Clip.mp4", "My Clip.jpg"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("renamed file missing %s: %v", name, err)
+		}
+	}
+	for _, name := range []string{oldName, oldThumb} {
+		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
+			t.Errorf("old file still present %s", name)
+		}
+	}
+}
+
+func TestRenameRecordingFailsForMissingFile(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	if err := (&App{}).RenameRecording("missing.mp4", "other"); err == nil {
+		t.Fatal("expected error renaming a missing recording")
+	}
+}

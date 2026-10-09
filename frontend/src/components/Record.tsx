@@ -7,6 +7,7 @@ import {
   GetSettings,
   UpdateSettings,
   DeleteRecording,
+  RenameRecording,
 } from "../../wailsjs/go/main/App";
 import { settings } from "../../wailsjs/go/models";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
@@ -20,6 +21,10 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(handler);
   }, [value, delay]);
   return debouncedValue;
+}
+
+function withVideoExtension(name: string): string {
+  return name.endsWith(".mp4") ? name : `${name}.mp4`;
 }
 
 export default function Record({
@@ -39,6 +44,11 @@ export default function Record({
   );
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [renamingRecording, setRenamingRecording] = useState<string | null>(
+    null,
+  );
+  const [renameValue, setRenameValue] = useState("");
+  const renamingRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -143,6 +153,36 @@ export default function Record({
 
   const handleSelectRecording = (recording: Recording) => {
     setSelectedRecording(recording);
+  };
+
+  const handleRename = async (oldName: string, newNameInput: string) => {
+    const rawName = newNameInput.trim();
+    if (!rawName) {
+      setRenameValue("");
+      setRenamingRecording(null);
+      return;
+    }
+    const newName = withVideoExtension(rawName);
+    if (newName === oldName) {
+      setRenameValue("");
+      setRenamingRecording(null);
+      return;
+    }
+    if (renamingRef.current) return;
+    renamingRef.current = true;
+    try {
+      await RenameRecording(oldName, newName);
+      const next = new Set(favorites);
+      if (next.delete(oldName)) next.add(newName);
+      setFavorites(next);
+      void saveRecordingsFavorites(next);
+      await syncRecordings();
+    } catch (err) {
+      console.error("Failed to rename recording:", err);
+    } finally {
+      setRenameValue("");
+      setRenamingRecording(null);
+    }
   };
 
   const handleBackToList = () => {
@@ -369,6 +409,15 @@ export default function Record({
                   onOpen={() => handleSelectRecording(rec)}
                   onToggleFavorite={() => toggleFavorite(rec.name)}
                   onDelete={() => handleDelete(rec.name)}
+                  renaming={renamingRecording === rec.name}
+                  renameValue={renameValue}
+                  onRenameChange={setRenameValue}
+                  onRenameCommit={() => handleRename(rec.name, renameValue)}
+                  onStartRename={() => {
+                    renamingRef.current = false;
+                    setRenamingRecording(rec.name);
+                    setRenameValue(rec.name);
+                  }}
                   thumbnail={
                     rec.thumbnailName && rec.thumbnailReady ? (
                       <img

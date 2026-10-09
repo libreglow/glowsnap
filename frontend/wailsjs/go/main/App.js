@@ -82,6 +82,10 @@ export function PauseRecording() {
   return window['go']['main']['App']['PauseRecording']();
 }
 
+export function RenameRecording(arg1, arg2) {
+  return window['go']['main']['App']['RenameRecording'](arg1, arg2);
+}
+
 export function RenameScreenshot(arg1, arg2) {
   return window['go']['main']['App']['RenameScreenshot'](arg1, arg2);
 }
