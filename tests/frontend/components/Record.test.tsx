@@ -60,6 +60,7 @@ describe("Record", () => {
     wails().GetSettings.mockResolvedValue(appSettingsFixture());
     wails().UpdateSettings.mockResolvedValue(appSettingsFixture());
     wails().DeleteRecording.mockResolvedValue(undefined);
+    wails().RenameRecording.mockResolvedValue(undefined);
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -394,5 +395,96 @@ describe("Record", () => {
     await waitFor(() => expect(wails().DeleteRecording).toHaveBeenCalled());
     expect(screen.getByText(FIRST)).toBeInTheDocument();
     confirmSpy.mockRestore();
+  });
+
+  it("renames a recording on Enter", async () => {
+    await renderRecord();
+    await userEvent.dblClick(screen.getByText(FIRST));
+    const input = screen.getByDisplayValue(FIRST);
+    fireEvent.change(input, { target: { value: "renamed" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(wails().RenameRecording).toHaveBeenCalledWith(
+        FIRST,
+        "renamed.mp4",
+      ),
+    );
+  });
+
+  it("does not rename when the name is unchanged", async () => {
+    await renderRecord();
+    await userEvent.dblClick(screen.getByText(FIRST));
+    fireEvent.keyDown(screen.getByDisplayValue(FIRST), { key: "Enter" });
+    await act(async () => {});
+    expect(wails().RenameRecording).not.toHaveBeenCalled();
+  });
+
+  it("does not rename when the input is cleared", async () => {
+    await renderRecord();
+    await userEvent.dblClick(screen.getByText(FIRST));
+    const input = screen.getByDisplayValue(FIRST);
+    fireEvent.change(input, { target: { value: "   " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await act(async () => {});
+    expect(wails().RenameRecording).not.toHaveBeenCalled();
+    expect(screen.getByText(FIRST)).toBeInTheDocument();
+  });
+
+  it("commits a rename on blur", async () => {
+    await renderRecord();
+    await userEvent.dblClick(screen.getByText(FIRST));
+    const input = screen.getByDisplayValue(FIRST);
+    fireEvent.change(input, { target: { value: "blur.mp4" } });
+    fireEvent.blur(input);
+
+    await waitFor(() =>
+      expect(wails().RenameRecording).toHaveBeenCalledWith(FIRST, "blur.mp4"),
+    );
+  });
+
+  it("reloads the list after a rename", async () => {
+    await renderRecord();
+    await userEvent.dblClick(screen.getByText(FIRST));
+    const input = screen.getByDisplayValue(FIRST);
+    fireEvent.change(input, { target: { value: "renamed.mp4" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(wails().ListRecordings).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps the old card when the rename fails", async () => {
+    wails().RenameRecording.mockRejectedValue(new Error("boom"));
+    await renderRecord();
+    await userEvent.dblClick(screen.getByText(FIRST));
+    const input = screen.getByDisplayValue(FIRST);
+    fireEvent.change(input, { target: { value: "renamed.mp4" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(wails().RenameRecording).toHaveBeenCalled());
+    expect(screen.getByText(FIRST)).toBeInTheDocument();
+  });
+
+  it("migrates a favorite across a rename", async () => {
+    wails().GetSettings.mockResolvedValue(
+      appSettingsFixture({
+        favorites: { recordings: [FIRST], screenshots: [] },
+      } as never),
+    );
+    await renderRecord();
+    await waitFor(() =>
+      expect(screen.getAllByTitle("Remove from favorites")).toHaveLength(1),
+    );
+    await userEvent.dblClick(screen.getByText(FIRST));
+    const input = screen.getByDisplayValue(FIRST);
+    fireEvent.change(input, { target: { value: "renamed" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(
+        wails().UpdateSettings.mock.calls.at(-1)?.[0].favorites.recordings,
+      ).toEqual(["renamed.mp4"]),
+    );
   });
 });

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -577,6 +578,26 @@ func (a *App) DeleteScreenshot(fileName string) error {
 	dir := settings.Load().ScreenshotSaveDir()
 	path := filepath.Join(dir, fileName)
 	return os.Remove(path)
+}
+
+func (a *App) RenameRecording(oldName, newName string) error {
+	if !strings.HasSuffix(newName, ".mp4") {
+		newName += ".mp4"
+	}
+	dir := settings.Load().RecordingSaveDir()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	oldPath := filepath.Join(dir, oldName)
+	newPath := filepath.Join(dir, newName)
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return err
+	}
+	oldThumb := filepath.Join(dir, screencast.ThumbnailFileName(oldName))
+	if _, err := os.Stat(oldThumb); err == nil {
+		os.Rename(oldThumb, filepath.Join(dir, screencast.ThumbnailFileName(newName)))
+	}
+	return nil
 }
 
 func (a *App) DeleteRecording(fileName string) error {

@@ -43,6 +43,7 @@ export const WAILS_BINDINGS = [
   "RenameScreenshot",
   "DeleteScreenshot",
   "ListRecordings",
+  "RenameRecording",
   "DeleteRecording",
   "ListMicrophones",
   "GetSavedMicrophone",
