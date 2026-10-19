@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"glowsnap/services/notification"
 	"glowsnap/services/screencast"
 	"glowsnap/services/screenshot"
 	"glowsnap/services/settings"
@@ -284,10 +285,9 @@ func (a *App) postProcessCapture(path, label string, cfg settings.Settings) {
 		}
 	}
 	if cfg.Screenshot.NotifyOnCapture {
-		runtime.SendNotification(a.ctx, runtime.NotificationOptions{
-			Title: "GlowSnap",
-			Body:  label + " saved.",
-		})
+		if err := notification.Send(a.dbusConn, "GlowSnap", label+" saved.", path); err != nil {
+			a.verboseLogf("notification failed: %v", err)
+		}
 	}
 }
 
