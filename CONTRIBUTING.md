@@ -1,137 +1,64 @@
-# Contributing to GlowSnap
+# Contributing
 
-Thank you for your interest in contributing to GlowSnap!
-
-GlowSnap is an open-source productivity tool for Linux. Everyone is welcome to contribute, whether you are fixing bugs, improving the UI, adding features, or helping with documentation.
-
-## Getting Started
-
-### 1. Fork the repository
-
-Create your own fork of the repository on GitHub.
-
-### 2. Clone your fork
-
-```bash
-git clone https://github.com/YOUR_USERNAME/glowsnap.git
-cd glowsnap
-```
-
-### 3. Install dependencies
-
-Frontend:
-
-```bash
-cd frontend
-npm ci
-```
-
-Backend:
-
-```bash
-cd ..
-go mod tidy
-```
-
-### 4. Run the application
-
-Start the development environment:
-
-```bash
-wails dev
-```
+Thanks for your interest in improving GlowSnap! This page describes the
+day-to-day workflow. The canonical, shorter version lives in
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md) at the repository root.
 
 ---
 
-# Project Structure
+## The workflow
 
-```
-glowsnap/
-├── frontend/        # React + TypeScript UI
-├── services/        # Go backend services
-│   ├── screenshot/  # Screenshot functionality
-│   └── screencast/  # Screen recording functionality
-├── tests/           # All test code (frontend + backend)
-├── test.sh          # Run the complete validation suite
-├── app.go           # Wails application bindings
-└── main.go          # Application entry point
-```
+1. **Fork and clone**
 
----
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/glowsnap.git
+   cd glowsnap
+   ```
 
-# How You Can Help
+2. **Install the dependencies**
 
-## Code Contributions
+   ```bash
+   ./scripts/install-deps.sh --install
+   cd frontend && npm ci && cd ..
+   go mod download
+   ```
 
-You can contribute by:
+3. **Create a branch**
 
-- Adding new features
-- Fixing bugs
-- Improving performance
-- Refactoring code
-- Improving accessibility
-- Adding tests
+   ```bash
+   git checkout -b feature/my-feature
+   ```
 
-## UI/UX Contributions
+4. **Make your changes** — see the layer rules below.
 
-GlowSnap focuses on a clean and minimal experience.
+5. **Validate**
 
-Design contributions are welcome:
+   ```bash
+   ./test.sh
+   ```
 
-- Better animations
-- Improved workflows
-- Better icons
-- Interface improvements
+   This is exactly what CI runs, so a green local run means a green pull
+   request.
 
-## Documentation
+6. **Commit with a conventional message**
 
-You can help by:
+   ```bash
+   git commit -m "feat: add new feature"
+   ```
 
-- Improving README files
-- Writing tutorials
-- Translating documentation
+7. **Push and open a pull request**
+
+   ```bash
+   git push origin feature/my-feature
+   ```
 
 ---
 
-# Creating a Pull Request
+## Commit style
 
-Before submitting a PR:
+The project uses [conventional commits](https://www.conventionalcommits.org/):
 
-1. Create a new branch:
-
-```bash
-git checkout -b feature/my-feature
-```
-
-2. Make your changes.
-
-3. Run the full test suite (this is exactly what CI runs):
-
-```bash
-./test.sh
-```
-
-4. Commit your changes:
-
-```bash
-git commit -m "feat: add new feature"
-```
-
-5. Push your branch:
-
-```bash
-git push origin feature/my-feature
-```
-
-6. Open a Pull Request.
-
----
-
-# Commit Style
-
-We use conventional commits:
-
-```
+```text
 feat: add new feature
 fix: fix screenshot bug
 refactor: improve code structure
@@ -140,23 +67,88 @@ docs: update documentation
 
 ---
 
-# Code Guidelines
+## Code guidelines
 
-- Keep code simple and readable.
-- Follow existing project patterns.
+- Keep the code simple and readable.
+- Follow the existing project patterns instead of introducing new ones.
 - Avoid unnecessary dependencies.
 - Test your changes before submitting (`./test.sh`).
 - Put new tests under `tests/`, not next to the source they cover.
 - Write clear commit messages.
 
+### Layer rules
+
+These come from [`AGENTS.md`](../../AGENTS.md) and are not negotiable:
+
+| Rule | Why |
+| ---- | --- |
+| `app.go` stays a bridge | It orchestrates; it does not accumulate business logic |
+| Reusable logic goes in `services/` | Keeps the services testable and reusable |
+| `services/` must not import Wails | The services must stay plain Go |
+| Do not duplicate service functionality in `app.go` | One implementation, one place to change |
+| Add an `App` method only when the frontend needs it | Every method becomes a public binding |
+| Never hand-edit `frontend/wailsjs` | The bindings are generated from `app.go` |
+| Do not add a global state store | The frontend uses local state and hooks |
+| Keep the Linux-native integrations | Portability is not a goal |
+
 ---
 
-# Community
+## Frontend conventions
 
-Every contribution matters
+- Feature folders under `src/components/` (`editor/`, `settings/`, …) plus
+  shared primitives in `src/components/ui/`.
+- Reusable logic goes into custom hooks in `src/lib/hooks/`.
+- Types are centralised in `src/types/types.ts`.
+- Primitives use `cva` plus `cn()` from `src/lib/utils.ts`.
+- Import generated functions from `frontend/wailsjs/go/main/App` and runtime
+  helpers from `frontend/wailsjs/runtime/runtime`.
 
-Thank you for helping make GlowSnap better!
+---
 
-```
+## Backend conventions
 
-```
+- `services/` packages are plain Go and must not depend on the Wails runtime.
+- Return `(value, error)` and log failures with `runtime.LogInfo` /
+  `runtime.LogError` (Wails layer only).
+- Use `sync.Mutex` in `app.go` and the channel semaphore pattern in
+  `services/screencast`.
+- Reuse the existing settings system; do not introduce a second persistence
+  mechanism.
+
+---
+
+## Tests
+
+- Backend tests live in `tests/backend/` and are symlinked into their package
+  directory. Edit the file under `tests/backend/`, never the symlink.
+- Frontend tests live in `tests/frontend/` and are picked up by
+  `frontend/vitest.config.ts`.
+- Test sources are type-checked separately with `npm run typecheck:test`.
+
+See [Testing](./testing.md) for the details.
+
+---
+
+## Ways to contribute without writing Go
+
+- **Documentation** — improve the guides in `docs/`, fix typos, add examples.
+- **UI/UX** — animations, workflows, icons and layout improvements are all
+  welcome. GlowSnap aims for a clean, minimal experience.
+- **Translations** — the interface strings live in the React components.
+- **Bug reports** — include your distribution, desktop environment, session
+  type (Wayland or X11) and the exact error message.
+- **Testing new releases** — try the AppImage on your system and report what
+  breaks.
+
+---
+
+## Review checklist
+
+Before you open a pull request, confirm that:
+
+- [ ] `./test.sh` passes.
+- [ ] `gofmt -l .` prints nothing.
+- [ ] No unrelated files were changed (`git status`).
+- [ ] New backend methods have regenerated bindings, not hand-written ones.
+- [ ] New tests live under `tests/`.
+- [ ] The commit message follows the conventional commit style.
