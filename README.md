@@ -53,7 +53,7 @@ Turn raw code and screenshots into polished, professional assets in one click. P
 - Free drawing
 - Arrows and shapes
 - Text editing
-- Custom colors and opacity
+- Custom Properties
 - Crop tools
 
 ---
