@@ -42,6 +42,12 @@ Turn raw code and screenshots into polished, professional assets in one click. P
 - Screenshot gallery
 - Full-screen image viewer
 
+### Recroding tool
+
+- Full screen record
+- Area selection for record
+- Record gallery
+
 ### Visual Editor
 
 - Free drawing
@@ -296,21 +302,11 @@ independent artifact, use the AppImage packaging (see `scripts/build-appimage.sh
 
 ---
 
-## Roadmap
-
-### v1.1.0
-
-- [x] Add screencast ( BETA )
-- [ ] Add settings
-
-### v1.1.1
-
-- [ ] Add more fonts
-- [ ] Add blur effect to the editor
 
 ### Future
 
 - Screenshot
+- Record tool
 - Advanced image editor
 - Productivity tools ecosystem
 - More native Linux integrations
