@@ -313,6 +313,17 @@ independent artifact, use the AppImage packaging (see `scripts/build-appimage.sh
 
 ---
 
+## Documentation
+
+Full documentation lives in [`docs/`](./docs):
+
+| Guide | Contents |
+| ----- | -------- |
+| [User documentation](./docs/user/README.md) | Installation, the palette, screenshots, the editor, recording, settings, shortcuts and troubleshooting |
+| [Developer documentation](./docs/developer/README.md) | Architecture, repository layout, backend and frontend internals, testing, building and releasing |
+
+---
+
 ## Contributing
 
 Contributions are welcome!
