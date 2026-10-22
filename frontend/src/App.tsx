@@ -53,6 +53,7 @@ export default function App() {
     Record<string, string>
   >({});
   const [overlayImageUrl, setOverlayImageUrl] = useState<string | null>(null);
+  const areaCaptureStateRef = useRef<"idle" | "starting" | "open">("idle");
 
   const switchToPalette = useCallback(() => {
     setMode("palette");
@@ -82,20 +83,26 @@ export default function App() {
     }
   };
   const handleTakeAreaScreenshot = async () => {
+    if (areaCaptureStateRef.current !== "idle") return;
+    areaCaptureStateRef.current = "starting";
     try {
       const url = await StartPaletteAreaCapture();
+      areaCaptureStateRef.current = "open";
       setOverlayImageUrl(url);
       setMode("overlay");
       WindowFullscreen();
       WindowShow();
     } catch (err) {
       console.error(err);
+      areaCaptureStateRef.current = "idle";
       switchToPalette();
     }
   };
 
   const handleOverlayComplete = useCallback(
     async (rect: OverlayRect) => {
+      if (areaCaptureStateRef.current !== "open") return;
+      areaCaptureStateRef.current = "idle";
       try {
         await CompletePaletteAreaScreenshot(
           rect.x,
@@ -114,6 +121,8 @@ export default function App() {
   );
 
   const handleOverlayCancel = useCallback(async () => {
+    if (areaCaptureStateRef.current !== "open") return;
+    areaCaptureStateRef.current = "idle";
     try {
       await CancelPaletteAreaCapture();
     } catch (err) {
@@ -323,6 +332,7 @@ export default function App() {
           <Overlay
             imageUrl={overlayImageUrl}
             onComplete={handleOverlayComplete}
+            onCancel={handleOverlayCancel}
           />
         )}
       </AnimatePresence>

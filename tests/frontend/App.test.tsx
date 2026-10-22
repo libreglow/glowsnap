@@ -267,6 +267,97 @@ describe("App", () => {
     expect(screen.getByTestId("palette")).toBeInTheDocument();
   });
 
+  it("ignores a second area capture request while one is still starting", async () => {
+    await renderApp();
+    let resolveStart!: (url: string) => void;
+    bindings().StartPaletteAreaCapture.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveStart = resolve;
+        }),
+    );
+    click("area");
+    click("area");
+    expect(bindings().StartPaletteAreaCapture).toHaveBeenCalledTimes(1);
+    resolveStart("http://127.0.0.1:34115/a.png");
+    await waitFor(() => expect(screen.getByTestId("overlay")).toBeInTheDocument());
+    click("crop");
+    await waitFor(() =>
+      expect(screen.queryByTestId("overlay")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("palette")).toBeInTheDocument();
+    expect(bindings().StartPaletteAreaCapture).toHaveBeenCalledTimes(1);
+  });
+
+  it("performs repeated area captures without getting stuck", async () => {
+    await renderApp();
+    const urls = [
+      "http://127.0.0.1:34115/a.png",
+      "http://127.0.0.1:34115/b.png",
+      "http://127.0.0.1:34115/c.png",
+    ];
+    bindings().StartPaletteAreaCapture.mockImplementation(
+      async () => urls.shift() as string,
+    );
+    for (let i = 0; i < 3; i++) {
+      click("area");
+      await waitFor(() =>
+        expect(screen.getByTestId("overlay")).toBeInTheDocument(),
+      );
+      click("crop");
+      await waitFor(() =>
+        expect(screen.queryByTestId("overlay")).not.toBeInTheDocument(),
+      );
+      expect(screen.getByTestId("palette")).toBeInTheDocument();
+    }
+    expect(bindings().CompletePaletteAreaScreenshot).toHaveBeenCalledTimes(3);
+  });
+
+  it("ignores duplicate capture completion attempts", async () => {
+    await enterOverlay();
+    click("crop");
+    click("crop");
+    await waitFor(() =>
+      expect(bindings().CompletePaletteAreaScreenshot).toHaveBeenCalledTimes(1),
+    );
+    await waitFor(() =>
+      expect(screen.queryByTestId("overlay")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("palette")).toBeInTheDocument();
+  });
+
+  it("cancels once and never captures on repeated Escape", async () => {
+    await enterOverlay();
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() =>
+      expect(bindings().CancelPaletteAreaCapture).toHaveBeenCalledTimes(1),
+    );
+    expect(bindings().CompletePaletteAreaScreenshot).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByTestId("overlay")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("palette")).toBeInTheDocument();
+  });
+
+  it("starts a new capture after cancelling one", async () => {
+    await enterOverlay();
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByTestId("overlay")).not.toBeInTheDocument(),
+    );
+    bindings().StartPaletteAreaCapture.mockResolvedValue(
+      "http://127.0.0.1:34115/b.png",
+    );
+    click("area");
+    await waitFor(() =>
+      expect(screen.getByTestId("overlay")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("overlay-url")).toHaveTextContent(
+      "http://127.0.0.1:34115/b.png",
+    );
+  });
+
   it("switches to the studio and resizes", async () => {
     await renderApp();
     click("studio");
