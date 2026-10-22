@@ -40,7 +40,7 @@ const clampPoint = (p: Point, maxX: number, maxY: number): Point => ({
 const HANDLE_SIZE = 12;
 const HANDLE_HIT = 20;
 
-export default function Overlay({ imageUrl, onComplete }: OverlayProps) {
+export default function Overlay({ imageUrl, onComplete, onCancel }: OverlayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<Rect | null>(null);
   const [mode, setMode] = useState<Mode>({ type: "idle" });
@@ -76,6 +76,12 @@ export default function Overlay({ imageUrl, onComplete }: OverlayProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel?.();
+        return;
+      }
+
       if (e.key === "Enter") {
         e.preventDefault();
         const imgRect = selection ? toImageRect(selection) : null;
@@ -84,7 +90,7 @@ export default function Overlay({ imageUrl, onComplete }: OverlayProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selection, toImageRect, onComplete]);
+  }, [selection, toImageRect, onComplete, onCancel]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {

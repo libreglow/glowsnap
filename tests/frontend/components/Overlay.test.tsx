@@ -39,11 +39,13 @@ function drag(target: Element, from: { x: number; y: number }, to: { x: number; 
 
 describe("Overlay", () => {
   let onComplete: ReturnType<typeof vi.fn<(rect: OverlayRect) => void>>;
+  let onCancel: ReturnType<typeof vi.fn<() => void>>;
   let originalWidth: number;
   let originalHeight: number;
 
   beforeEach(() => {
     onComplete = vi.fn();
+    onCancel = vi.fn();
     originalWidth = window.innerWidth;
     originalHeight = window.innerHeight;
   });
@@ -299,8 +301,16 @@ describe("Overlay", () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it("documents that Escape is handled elsewhere", () => {
-    render(<Overlay imageUrl={IMAGE_URL} onComplete={onComplete} />);
-    expect(screen.getByText("cancel")).toBeInTheDocument();
+  it("cancels on Escape from the overlay itself", () => {
+    render(
+      <Overlay
+        imageUrl={IMAGE_URL}
+        onComplete={onComplete}
+        onCancel={onCancel}
+      />,
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
   });
 });

@@ -332,6 +332,7 @@ export default function App() {
           <Overlay
             imageUrl={overlayImageUrl}
             onComplete={handleOverlayComplete}
+            onCancel={handleOverlayCancel}
           />
         )}
       </AnimatePresence>
