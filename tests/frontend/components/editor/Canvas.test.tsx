@@ -477,6 +477,24 @@ describe("Canvas", () => {
     expect(text.getAttribute("data-font-size")).toBe("30");
   });
 
+  it("renders the selected text fill color", () => {
+    renderCanvas({
+      shapes: [
+        shapeEntry({
+          id: "s1",
+          type: "text",
+          text: "caption",
+          fontSize: 30,
+          width: 200,
+          height: 40,
+          fill: "#00ff00",
+          fillEnabled: true,
+        }),
+      ],
+    });
+    expect(nodes("Text")[0].getAttribute("data-fill")).toBe("#00ff00");
+  });
+
   it("hides the shape being edited inline", () => {
     renderCanvas({
       shapes: [
