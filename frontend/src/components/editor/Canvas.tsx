@@ -460,6 +460,7 @@ const ShapeNode = memo(function ShapeNode({
           letterSpacing={shape.letterSpacing ?? textDefaults.letterSpacing}
           textDecoration={shape.textDecoration || textDefaults.textDecoration}
           wrap="word"
+          fill={fill}
           stroke={stroke}
           strokeWidth={strokeWidth}
           opacity={opacity}
