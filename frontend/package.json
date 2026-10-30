@@ -22,7 +22,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^14.4.0",
     "konva": "^10.9.0",
-    "lucide-react": "^1.59.0",
+    "lucide-react": "^1.61.0",
     "path": "^0.12.7",
     "postcss": "^8.5.31",
     "react": "^19.3.0",
